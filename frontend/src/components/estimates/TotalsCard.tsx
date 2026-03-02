@@ -1,7 +1,9 @@
 import React from 'react';
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Input } from '../ui/Input';
+import { Select } from '../ui/Select';
 import { formatCurrency } from '../../lib/utils';
+import type { TaxRate } from '../../types';
 
 interface TotalsCardProps {
   subtotal: number;
@@ -9,10 +11,13 @@ interface TotalsCardProps {
   installQty: number;
   installRate: number;
   miscCharge: number;
+  taxRateId: string;
+  taxRates: TaxRate[];
   onMarkupChange: (value: number) => void;
   onInstallQtyChange: (value: number) => void;
   onInstallRateChange: (value: number) => void;
   onMiscChargeChange: (value: number) => void;
+  onTaxRateChange: (value: string) => void;
 }
 
 export function TotalsCard({
@@ -21,14 +26,21 @@ export function TotalsCard({
   installQty,
   installRate,
   miscCharge,
+  taxRateId,
+  taxRates,
   onMarkupChange,
   onInstallQtyChange,
   onInstallRateChange,
   onMiscChargeChange,
+  onTaxRateChange,
 }: TotalsCardProps) {
   const markupAmount = subtotal * (markupPercent / 100);
   const installTotal = installQty * installRate;
-  const grandTotal = subtotal + markupAmount + installTotal + miscCharge;
+  
+  const selectedTaxRate = taxRates.find(r => r.id.toString() === taxRateId);
+  const taxAmount = selectedTaxRate ? (subtotal + markupAmount + installTotal + miscCharge) * (selectedTaxRate.rate / 100) : 0;
+  
+  const grandTotal = subtotal + markupAmount + installTotal + miscCharge + taxAmount;
 
   return (
     <Card>
@@ -50,7 +62,7 @@ export function TotalsCard({
               type="number"
               step="0.1"
               min="0"
-              value={markupPercent || ''}
+              value={markupPercent === 0 ? '' : markupPercent.toFixed(2)}
               onChange={(e) => onMarkupChange(parseFloat(e.target.value) || 0)}
               className="w-20 text-right"
             />
@@ -69,7 +81,7 @@ export function TotalsCard({
               type="number"
               step="1"
               min="0"
-              value={installQty || ''}
+              value={installQty === 0 ? '' : installQty.toFixed(2)}
               onChange={(e) => onInstallQtyChange(parseFloat(e.target.value) || 0)}
               placeholder="Qty"
               className="flex-1"
@@ -79,7 +91,7 @@ export function TotalsCard({
               type="number"
               step="0.01"
               min="0"
-              value={installRate || ''}
+              value={installRate === 0 ? '' : installRate.toFixed(2)}
               onChange={(e) => onInstallRateChange(parseFloat(e.target.value) || 0)}
               placeholder="Rate"
               className="flex-1"
@@ -99,10 +111,28 @@ export function TotalsCard({
               type="number"
               step="0.01"
               min="0"
-              value={miscCharge || ''}
+              value={miscCharge === 0 ? '' : miscCharge.toFixed(2)}
               onChange={(e) => onMiscChargeChange(parseFloat(e.target.value) || 0)}
               className="w-28 text-right"
             />
+          </div>
+        </div>
+
+        {/* Tax Rate */}
+        <div className="space-y-2 pt-2 border-t border-zinc-700">
+          <Select
+            label="Tax Rate"
+            value={taxRateId}
+            onChange={onTaxRateChange}
+            options={taxRates.map((rate) => ({
+              value: rate.id,
+              label: `${rate.name} (${rate.rate.toFixed(2)}%)`,
+            }))}
+            placeholder="Select tax rate..."
+          />
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-zinc-400">Tax Amount</span>
+            <span className="text-zinc-200">{formatCurrency(taxAmount)}</span>
           </div>
         </div>
 

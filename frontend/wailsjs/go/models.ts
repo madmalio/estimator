@@ -56,6 +56,42 @@ export namespace database {
 		    return a;
 		}
 	}
+	export class CompanySettings {
+	    id: number;
+	    companyName: string;
+	    addressLine1: string;
+	    addressLine2: string;
+	    phone: string;
+	    email: string;
+	    theme: string;
+	    defaultTermsBlock1: string;
+	    defaultTermsBlock2: string;
+	    defaultTermsBlock3: string;
+	    defaultPaymentsNote: string;
+	    defaultCreditCardNote: string;
+	    defaultSignatureNote: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CompanySettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.companyName = source["companyName"];
+	        this.addressLine1 = source["addressLine1"];
+	        this.addressLine2 = source["addressLine2"];
+	        this.phone = source["phone"];
+	        this.email = source["email"];
+	        this.theme = source["theme"];
+	        this.defaultTermsBlock1 = source["defaultTermsBlock1"];
+	        this.defaultTermsBlock2 = source["defaultTermsBlock2"];
+	        this.defaultTermsBlock3 = source["defaultTermsBlock3"];
+	        this.defaultPaymentsNote = source["defaultPaymentsNote"];
+	        this.defaultCreditCardNote = source["defaultCreditCardNote"];
+	        this.defaultSignatureNote = source["defaultSignatureNote"];
+	    }
+	}
 	export class Customer {
 	    id: number;
 	    name: string;
@@ -154,6 +190,147 @@ export namespace database {
 		}
 	}
 	
+	export class ManualQuoteLineItem {
+	    id: number;
+	    manualQuoteId: number;
+	    itemName: string;
+	    description: string;
+	    lineTotal: number;
+	    sortOrder: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ManualQuoteLineItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.manualQuoteId = source["manualQuoteId"];
+	        this.itemName = source["itemName"];
+	        this.description = source["description"];
+	        this.lineTotal = source["lineTotal"];
+	        this.sortOrder = source["sortOrder"];
+	    }
+	}
+	export class ManualQuote {
+	    id: number;
+	    quoteNumber: string;
+	    customerId?: number;
+	    customer?: Customer;
+	    jobName: string;
+	    // Go type: time
+	    quoteDate: any;
+	    descriptionBody: string;
+	    lineItems?: ManualQuoteLineItem[];
+	    subtotal: number;
+	    tax: number;
+	    total: number;
+	    depositPercent: number;
+	    depositAmount: number;
+	    amountDue: number;
+	    termsBlock1: string;
+	    termsBlock2: string;
+	    paymentsNote: string;
+	    creditCardNote: string;
+	    signatureNote: string;
+	    sortOrder: number;
+	    // Go type: time
+	    createdAt: any;
+	    // Go type: time
+	    updatedAt: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new ManualQuote(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.quoteNumber = source["quoteNumber"];
+	        this.customerId = source["customerId"];
+	        this.customer = this.convertValues(source["customer"], Customer);
+	        this.jobName = source["jobName"];
+	        this.quoteDate = this.convertValues(source["quoteDate"], null);
+	        this.descriptionBody = source["descriptionBody"];
+	        this.lineItems = this.convertValues(source["lineItems"], ManualQuoteLineItem);
+	        this.subtotal = source["subtotal"];
+	        this.tax = source["tax"];
+	        this.total = source["total"];
+	        this.depositPercent = source["depositPercent"];
+	        this.depositAmount = source["depositAmount"];
+	        this.amountDue = source["amountDue"];
+	        this.termsBlock1 = source["termsBlock1"];
+	        this.termsBlock2 = source["termsBlock2"];
+	        this.paymentsNote = source["paymentsNote"];
+	        this.creditCardNote = source["creditCardNote"];
+	        this.signatureNote = source["signatureNote"];
+	        this.sortOrder = source["sortOrder"];
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	
+	export class TaxRate {
+	    id: number;
+	    name: string;
+	    rate: number;
+	    isDefault: boolean;
+	    // Go type: time
+	    createdAt: any;
+	    // Go type: time
+	    updatedAt: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new TaxRate(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.rate = source["rate"];
+	        this.isDefault = source["isDefault"];
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 
 }
 
@@ -227,6 +404,82 @@ export namespace types {
 	        this.unitPrice = source["unitPrice"];
 	    }
 	}
+	export class ManualQuoteLineItemRequest {
+	    itemName: string;
+	    description: string;
+	    lineTotal: number;
+	    sortOrder: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ManualQuoteLineItemRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.itemName = source["itemName"];
+	        this.description = source["description"];
+	        this.lineTotal = source["lineTotal"];
+	        this.sortOrder = source["sortOrder"];
+	    }
+	}
+	export class CreateManualQuoteRequest {
+	    customerId?: number;
+	    jobName: string;
+	    descriptionBody: string;
+	    lineItems: ManualQuoteLineItemRequest[];
+	    subtotal: number;
+	    tax: number;
+	    total: number;
+	    depositPercent: number;
+	    depositAmount: number;
+	    amountDue: number;
+	    termsBlock1: string;
+	    termsBlock2: string;
+	    paymentsNote: string;
+	    creditCardNote: string;
+	    signatureNote: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateManualQuoteRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.customerId = source["customerId"];
+	        this.jobName = source["jobName"];
+	        this.descriptionBody = source["descriptionBody"];
+	        this.lineItems = this.convertValues(source["lineItems"], ManualQuoteLineItemRequest);
+	        this.subtotal = source["subtotal"];
+	        this.tax = source["tax"];
+	        this.total = source["total"];
+	        this.depositPercent = source["depositPercent"];
+	        this.depositAmount = source["depositAmount"];
+	        this.amountDue = source["amountDue"];
+	        this.termsBlock1 = source["termsBlock1"];
+	        this.termsBlock2 = source["termsBlock2"];
+	        this.paymentsNote = source["paymentsNote"];
+	        this.creditCardNote = source["creditCardNote"];
+	        this.signatureNote = source["signatureNote"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class CreatePriceListItemRequest {
 	    itemName: string;
 	    unitPrice: number;
@@ -243,6 +496,23 @@ export namespace types {
 	        this.categoryId = source["categoryId"];
 	    }
 	}
+	export class CreateTaxRateRequest {
+	    name: string;
+	    rate: number;
+	    isDefault: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateTaxRateRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.rate = source["rate"];
+	        this.isDefault = source["isDefault"];
+	    }
+	}
+	
 	export class SortOrderUpdate {
 	    id: number;
 	    sortOrder: number;
@@ -255,6 +525,40 @@ export namespace types {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.sortOrder = source["sortOrder"];
+	    }
+	}
+	export class UpdateCompanySettingsRequest {
+	    companyName: string;
+	    addressLine1: string;
+	    addressLine2: string;
+	    phone: string;
+	    email: string;
+	    theme: string;
+	    defaultTermsBlock1: string;
+	    defaultTermsBlock2: string;
+	    defaultTermsBlock3: string;
+	    defaultPaymentsNote: string;
+	    defaultCreditCardNote: string;
+	    defaultSignatureNote: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateCompanySettingsRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.companyName = source["companyName"];
+	        this.addressLine1 = source["addressLine1"];
+	        this.addressLine2 = source["addressLine2"];
+	        this.phone = source["phone"];
+	        this.email = source["email"];
+	        this.theme = source["theme"];
+	        this.defaultTermsBlock1 = source["defaultTermsBlock1"];
+	        this.defaultTermsBlock2 = source["defaultTermsBlock2"];
+	        this.defaultTermsBlock3 = source["defaultTermsBlock3"];
+	        this.defaultPaymentsNote = source["defaultPaymentsNote"];
+	        this.defaultCreditCardNote = source["defaultCreditCardNote"];
+	        this.defaultSignatureNote = source["defaultSignatureNote"];
 	    }
 	}
 	export class UpdateEstimateJobRequest {
@@ -300,6 +604,66 @@ export namespace types {
 	        this.quantity = source["quantity"];
 	        this.unitPrice = source["unitPrice"];
 	    }
+	}
+	export class UpdateManualQuoteRequest {
+	    id: number;
+	    customerId?: number;
+	    jobName: string;
+	    descriptionBody: string;
+	    lineItems: ManualQuoteLineItemRequest[];
+	    subtotal: number;
+	    tax: number;
+	    total: number;
+	    depositPercent: number;
+	    depositAmount: number;
+	    amountDue: number;
+	    termsBlock1: string;
+	    termsBlock2: string;
+	    paymentsNote: string;
+	    creditCardNote: string;
+	    signatureNote: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateManualQuoteRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.customerId = source["customerId"];
+	        this.jobName = source["jobName"];
+	        this.descriptionBody = source["descriptionBody"];
+	        this.lineItems = this.convertValues(source["lineItems"], ManualQuoteLineItemRequest);
+	        this.subtotal = source["subtotal"];
+	        this.tax = source["tax"];
+	        this.total = source["total"];
+	        this.depositPercent = source["depositPercent"];
+	        this.depositAmount = source["depositAmount"];
+	        this.amountDue = source["amountDue"];
+	        this.termsBlock1 = source["termsBlock1"];
+	        this.termsBlock2 = source["termsBlock2"];
+	        this.paymentsNote = source["paymentsNote"];
+	        this.creditCardNote = source["creditCardNote"];
+	        this.signatureNote = source["signatureNote"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

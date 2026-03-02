@@ -8,6 +8,7 @@ import { PriceItemRow } from './PriceItemRow';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Card } from '../ui/Card';
+import { Modal } from '../ui/Modal';
 import type { Category, PriceListItem, SortOrderUpdate } from '../../types';
 
 interface CategoryCardProps {
@@ -39,6 +40,7 @@ export function CategoryCard({
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const handleSaveCategory = () => {
     if (categoryName.trim()) {
@@ -108,11 +110,7 @@ export function CategoryCard({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
-                if (confirm(`Delete category "${category.name}" and all its items?`)) {
-                  onDeleteCategory(category.id);
-                }
-              }}
+              onClick={() => setIsDeleteModalOpen(true)}
             >
               <Trash2 size={14} className="text-red-500" />
             </Button>
@@ -179,6 +177,32 @@ export function CategoryCard({
           )}
         </div>
       )}
+
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Delete Category"
+      >
+        <div className="space-y-4">
+          <p className="text-zinc-300">
+            Delete category "{category.name}" and all its items?
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setIsDeleteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                onDeleteCategory(category.id);
+                setIsDeleteModalOpen(false);
+              }}
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </Card>
   );
 }

@@ -5,18 +5,22 @@ import (
 	"cabinet-estimator/internal/services"
 	"cabinet-estimator/internal/types"
 	"context"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"fmt"
+	"os/exec"
+	"runtime"
 )
 
 // App struct
 type App struct {
-	ctx              context.Context
-	customerService  *services.CustomerService
-	categoryService  *services.CategoryService
-	priceListService *services.PriceListService
-	estimateService  *services.EstimateService
-	pdfService       *services.PDFService
+	ctx                context.Context
+	customerService    *services.CustomerService
+	categoryService    *services.CategoryService
+	priceListService   *services.PriceListService
+	estimateService    *services.EstimateService
+	manualQuoteService *services.ManualQuoteService
+	pdfService         *services.PDFService
+	settingsService    *services.SettingsService
+	taxRateService     *services.TaxRateService
 }
 
 // NewApp creates a new App application struct
@@ -33,7 +37,10 @@ func (a *App) startup(ctx context.Context) {
 	a.categoryService = services.NewCategoryService()
 	a.priceListService = services.NewPriceListService()
 	a.estimateService = services.NewEstimateService()
+	a.manualQuoteService = services.NewManualQuoteService()
 	a.pdfService = services.NewPDFService()
+	a.settingsService = services.NewSettingsService()
+	a.taxRateService = services.NewTaxRateService()
 }
 
 // shutdown is called when the app is closing
@@ -169,12 +176,77 @@ func (a *App) UpdateEstimateSortOrder(updates []types.SortOrderUpdate) error {
 	return a.estimateService.UpdateJobSortOrder(updates)
 }
 
+// ==================== Manual Quote Methods ====================
+
+func (a *App) GetAllManualQuotes() ([]database.ManualQuote, error) {
+	return a.manualQuoteService.GetAll()
+}
+
+func (a *App) GetManualQuote(id uint) (*database.ManualQuote, error) {
+	return a.manualQuoteService.GetByID(id)
+}
+
+func (a *App) CreateManualQuote(req types.CreateManualQuoteRequest) (*database.ManualQuote, error) {
+	return a.manualQuoteService.Create(req)
+}
+
+func (a *App) UpdateManualQuote(req types.UpdateManualQuoteRequest) (*database.ManualQuote, error) {
+	return a.manualQuoteService.Update(req)
+}
+
+func (a *App) DeleteManualQuote(id uint) error {
+	return a.manualQuoteService.Delete(id)
+}
+
 // ==================== PDF Methods ====================
 
 func (a *App) GenerateEstimatePDF(jobID uint) (string, error) {
 	return a.pdfService.GenerateEstimatePDF(jobID)
 }
 
-func (a *App) OpenFileInDefaultApp(filePath string) {
-	runtime.BrowserOpenURL(a.ctx, "file://"+filePath)
+func (a *App) OpenFileInDefaultApp(filePath string) error {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", "", filePath)
+	case "darwin":
+		cmd = exec.Command("open", filePath)
+	default:
+		cmd = exec.Command("xdg-open", filePath)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to open file %q: %w", filePath, err)
+	}
+
+	return nil
+}
+
+// ==================== Settings Methods ====================
+
+func (a *App) GetCompanySettings() (*database.CompanySettings, error) {
+	return a.settingsService.GetCompanySettings()
+}
+
+func (a *App) UpdateCompanySettings(req types.UpdateCompanySettingsRequest) (*database.CompanySettings, error) {
+	return a.settingsService.UpdateCompanySettings(req)
+}
+
+// ==================== Tax Rate Methods ====================
+
+func (a *App) GetAllTaxRates() ([]database.TaxRate, error) {
+	return a.taxRateService.GetAll()
+}
+
+func (a *App) CreateTaxRate(req types.CreateTaxRateRequest) (*database.TaxRate, error) {
+	return a.taxRateService.Create(req)
+}
+
+func (a *App) UpdateTaxRate(id uint, req types.CreateTaxRateRequest) (*database.TaxRate, error) {
+	return a.taxRateService.Update(id, req)
+}
+
+func (a *App) DeleteTaxRate(id uint) error {
+	return a.taxRateService.Delete(id)
 }

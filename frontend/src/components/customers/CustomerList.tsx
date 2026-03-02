@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Modal } from '../ui/Modal';
+import { useToast } from '../ui/Toast';
 import { CustomerForm } from './CustomerForm';
 import type { Customer, CreateCustomerRequest } from '../../types';
 import {
@@ -15,8 +16,11 @@ import {
 export function CustomerList() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | undefined>();
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
+  const { showToast } = useToast();
 
   const fetchCustomers = async () => {
     try {
@@ -38,8 +42,10 @@ export function CustomerList() {
       await CreateCustomer(data);
       await fetchCustomers();
       setIsModalOpen(false);
+      showToast('Customer created', 'success');
     } catch (error) {
       console.error('Failed to create customer:', error);
+      showToast('Failed to create customer', 'error');
     }
   };
 
@@ -50,19 +56,32 @@ export function CustomerList() {
       await fetchCustomers();
       setEditingCustomer(undefined);
       setIsModalOpen(false);
+      showToast('Customer updated', 'success');
     } catch (error) {
       console.error('Failed to update customer:', error);
+      showToast('Failed to update customer', 'error');
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this customer?')) return;
+  const handleDelete = async () => {
+    if (!customerToDelete) return;
+
     try {
-      await DeleteCustomer(id);
+      await DeleteCustomer(customerToDelete.id);
       await fetchCustomers();
+      showToast('Customer deleted', 'success');
     } catch (error) {
       console.error('Failed to delete customer:', error);
+      showToast('Failed to delete customer', 'error');
+    } finally {
+      setCustomerToDelete(null);
+      setIsDeleteModalOpen(false);
     }
+  };
+
+  const openDeleteModal = (customer: Customer) => {
+    setCustomerToDelete(customer);
+    setIsDeleteModalOpen(true);
   };
 
   const openCreateModal = () => {
@@ -138,7 +157,7 @@ export function CustomerList() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(customer.id)}
+                          onClick={() => openDeleteModal(customer)}
                         >
                           <Trash2 size={14} className="text-red-500" />
                         </Button>
@@ -162,6 +181,36 @@ export function CustomerList() {
           onSubmit={editingCustomer ? handleUpdate : handleCreate}
           onCancel={closeModal}
         />
+      </Modal>
+
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setCustomerToDelete(null);
+          setIsDeleteModalOpen(false);
+        }}
+        title="Delete Customer"
+      >
+        <div className="space-y-4">
+          <p className="text-zinc-300">
+            Are you sure you want to delete
+            {customerToDelete ? ` "${customerToDelete.name}"` : ' this customer'}?
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setCustomerToDelete(null);
+                setIsDeleteModalOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete}>
+              Delete
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

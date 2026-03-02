@@ -1,8 +1,8 @@
 import React from 'react';
-import { FileText, Users, List } from 'lucide-react';
+import { FileText, Users, List, Settings, Clipboard } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-export type ViewType = 'estimates' | 'customers' | 'pricelist';
+export type ViewType = 'estimates' | 'manualquotes' | 'customers' | 'pricelist' | 'settings';
 
 interface SidebarProps {
   activeView: ViewType;
@@ -16,14 +16,16 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { id: 'estimates', label: 'Estimates', icon: <FileText size={20} /> },
+  { id: 'estimates', label: 'Cabinet Estimates', icon: <FileText size={20} /> },
+  { id: 'manualquotes', label: 'Manual Quotes', icon: <Clipboard size={20} /> },
   { id: 'customers', label: 'Customers', icon: <Users size={20} /> },
   { id: 'pricelist', label: 'Price List', icon: <List size={20} /> },
+  { id: 'settings', label: 'Settings', icon: <Settings size={20} /> },
 ];
 
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {
   return (
-    <aside className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col">
+    <aside className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col no-print">
       <div className="px-4 py-5 border-b border-zinc-800">
         <h1 className="text-xl font-bold text-zinc-100">Cabinet Estimator</h1>
       </div>

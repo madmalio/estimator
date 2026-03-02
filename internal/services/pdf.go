@@ -177,11 +177,18 @@ func (s *PDFService) GenerateEstimatePDF(jobID uint) (string, error) {
 	pdf.SetFont("Arial", "I", 9)
 	pdf.MultiCell(0, 5, "This estimate is valid for 30 days from the date above. Prices are subject to change based on material availability and scope modifications.", "", "L", false)
 
-	// Save to temp file
-	tempDir := os.TempDir()
+	// Save to a user-visible folder when possible
+	outputDir := os.TempDir()
+	if homeDir, homeErr := os.UserHomeDir(); homeErr == nil {
+		documentsDir := filepath.Join(homeDir, "Documents", "CabinetEstimator")
+		if mkdirErr := os.MkdirAll(documentsDir, 0o755); mkdirErr == nil {
+			outputDir = documentsDir
+		}
+	}
+
 	timestamp := time.Now().Format("20060102-150405")
 	filename := fmt.Sprintf("Estimate_%d_%s.pdf", job.JobID, timestamp)
-	filePath := filepath.Join(tempDir, filename)
+	filePath := filepath.Join(outputDir, filename)
 
 	err = pdf.OutputFileAndClose(filePath)
 	if err != nil {

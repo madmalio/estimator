@@ -36,3 +36,83 @@ body {
   height: 100vh;
   display: flex;
 }
+
+.print-only {
+  display: none;
+}
+
+.manual-quote-payment-schedule {
+  background-color: #fef08a;
+}
+
+.manual-quote-credit-card-note {
+  background-color: #fef08a;
+}
+
+/* Remove up and down arrows from number inputs */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+@media print {
+  @page {
+    size: Letter;
+    margin: 0.35in;
+  }
+
+  html,
+  body,
+  #root {
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  * {
+    box-shadow: none !important;
+  }
+
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  .manual-quote-print {
+    width: 100%;
+  }
+
+  .manual-quote-sheet {
+    max-width: 8.15in !important;
+    margin: 0 auto;
+    padding: 0 !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .manual-quote-payment-schedule {
+    background-color: #fef08a !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .manual-quote-credit-card-note {
+    background-color: #fef08a !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

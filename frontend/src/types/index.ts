@@ -100,3 +100,112 @@ export interface UpdateLineItemRequest {
   quantity: number;
   unitPrice: number;
 }
+
+export interface CompanySettings {
+  id: number;
+  companyName: string;
+  addressLine1: string;
+  addressLine2: string;
+  phone: string;
+  email: string;
+  theme: string;
+  defaultTermsBlock1: string;
+  defaultTermsBlock2: string;
+  defaultTermsBlock3: string;
+  defaultPaymentsNote: string;
+  defaultCreditCardNote: string;
+  defaultSignatureNote: string;
+}
+
+export interface TaxRate {
+  id: number;
+  name: string;
+  rate: number;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTaxRateRequest {
+  name: string;
+  rate: number;
+  isDefault: boolean;
+}
+
+export interface ManualQuote {
+  id: number;
+  quoteNumber: string;
+  customerId?: number;
+  customer?: Customer;
+  jobName: string;
+  quoteDate: string;
+  descriptionBody: string;
+  lineItems?: ManualQuoteLineItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  depositPercent: number;
+  depositAmount: number;
+  amountDue: number;
+  termsBlock1: string;
+  termsBlock2: string;
+  paymentsNote: string;
+  creditCardNote: string;
+  signatureNote: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateManualQuoteRequest {
+  customerId?: number;
+  jobName: string;
+  descriptionBody: string;
+  lineItems: ManualQuoteLineItemRequest[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  depositPercent: number;
+  depositAmount: number;
+  amountDue: number;
+  termsBlock1: string;
+  termsBlock2: string;
+  paymentsNote: string;
+  creditCardNote: string;
+  signatureNote: string;
+}
+
+export interface UpdateManualQuoteRequest extends CreateManualQuoteRequest {
+  id: number;
+}
+
+export interface ManualQuoteLineItem {
+  id: number;
+  manualQuoteId: number;
+  itemName: string;
+  description: string;
+  lineTotal: number;
+  sortOrder: number;
+}
+
+export interface ManualQuoteLineItemRequest {
+  itemName: string;
+  description: string;
+  lineTotal: number;
+  sortOrder: number;
+}
+
+export interface UpdateCompanySettingsRequest {
+  companyName: string;
+  addressLine1: string;
+  addressLine2: string;
+  phone: string;
+  email: string;
+  theme: string;
+  defaultTermsBlock1: string;
+  defaultTermsBlock2: string;
+  defaultTermsBlock3: string;
+  defaultPaymentsNote: string;
+  defaultCreditCardNote: string;
+  defaultSignatureNote: string;
+}

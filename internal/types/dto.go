@@ -62,3 +62,71 @@ type UpdateLineItemRequest struct {
 	Quantity     float64 `json:"quantity"`
 	UnitPrice    float64 `json:"unitPrice"`
 }
+
+// UpdateCompanySettingsRequest is the DTO for updating company settings
+type UpdateCompanySettingsRequest struct {
+	CompanyName           string `json:"companyName"`
+	AddressLine1          string `json:"addressLine1"`
+	AddressLine2          string `json:"addressLine2"`
+	Phone                 string `json:"phone"`
+	Email                 string `json:"email"`
+	Theme                 string `json:"theme"`
+	DefaultTermsBlock1    string `json:"defaultTermsBlock1"`
+	DefaultTermsBlock2    string `json:"defaultTermsBlock2"`
+	DefaultTermsBlock3    string `json:"defaultTermsBlock3"`
+	DefaultPaymentsNote   string `json:"defaultPaymentsNote"`
+	DefaultCreditCardNote string `json:"defaultCreditCardNote"`
+	DefaultSignatureNote  string `json:"defaultSignatureNote"`
+}
+
+// CreateManualQuoteRequest is the DTO for creating a manual quote
+type CreateManualQuoteRequest struct {
+	CustomerID      *uint                        `json:"customerId"`
+	JobName         string                       `json:"jobName"`
+	DescriptionBody string                       `json:"descriptionBody"`
+	LineItems       []ManualQuoteLineItemRequest `json:"lineItems"`
+	Subtotal        float64                      `json:"subtotal"`
+	Tax             float64                      `json:"tax"`
+	Total           float64                      `json:"total"`
+	DepositPercent  float64                      `json:"depositPercent"`
+	DepositAmount   float64                      `json:"depositAmount"`
+	AmountDue       float64                      `json:"amountDue"`
+	TermsBlock1     string                       `json:"termsBlock1"`
+	TermsBlock2     string                       `json:"termsBlock2"`
+	PaymentsNote    string                       `json:"paymentsNote"`
+	CreditCardNote  string                       `json:"creditCardNote"`
+	SignatureNote   string                       `json:"signatureNote"`
+}
+
+// UpdateManualQuoteRequest is the DTO for updating a manual quote
+type UpdateManualQuoteRequest struct {
+	ID              uint                         `json:"id"`
+	CustomerID      *uint                        `json:"customerId"`
+	JobName         string                       `json:"jobName"`
+	DescriptionBody string                       `json:"descriptionBody"`
+	LineItems       []ManualQuoteLineItemRequest `json:"lineItems"`
+	Subtotal        float64                      `json:"subtotal"`
+	Tax             float64                      `json:"tax"`
+	Total           float64                      `json:"total"`
+	DepositPercent  float64                      `json:"depositPercent"`
+	DepositAmount   float64                      `json:"depositAmount"`
+	AmountDue       float64                      `json:"amountDue"`
+	TermsBlock1     string                       `json:"termsBlock1"`
+	TermsBlock2     string                       `json:"termsBlock2"`
+	PaymentsNote    string                       `json:"paymentsNote"`
+	CreditCardNote  string                       `json:"creditCardNote"`
+	SignatureNote   string                       `json:"signatureNote"`
+}
+
+type ManualQuoteLineItemRequest struct {
+	ItemName    string  `json:"itemName"`
+	Description string  `json:"description"`
+	LineTotal   float64 `json:"lineTotal"`
+	SortOrder   int     `json:"sortOrder"`
+}
+
+type CreateTaxRateRequest struct {
+	Name      string  `json:"name"`
+	Rate      float64 `json:"rate"`
+	IsDefault bool    `json:"isDefault"`
+}

@@ -11,7 +11,11 @@ export function CreateCustomer(arg1:types.CreateCustomerRequest):Promise<databas
 
 export function CreateEstimate(arg1:types.CreateEstimateJobRequest):Promise<database.EstimateJob>;
 
+export function CreateManualQuote(arg1:types.CreateManualQuoteRequest):Promise<database.ManualQuote>;
+
 export function CreatePriceListItem(arg1:types.CreatePriceListItemRequest):Promise<database.PriceListItem>;
+
+export function CreateTaxRate(arg1:types.CreateTaxRateRequest):Promise<database.TaxRate>;
 
 export function DeleteCategory(arg1:number):Promise<void>;
 
@@ -21,7 +25,11 @@ export function DeleteEstimate(arg1:number):Promise<void>;
 
 export function DeleteLineItem(arg1:number):Promise<void>;
 
+export function DeleteManualQuote(arg1:number):Promise<void>;
+
 export function DeletePriceListItem(arg1:number):Promise<void>;
+
+export function DeleteTaxRate(arg1:number):Promise<void>;
 
 export function GenerateEstimatePDF(arg1:number):Promise<string>;
 
@@ -33,15 +41,23 @@ export function GetAllCustomers():Promise<Array<database.Customer>>;
 
 export function GetAllEstimates():Promise<Array<database.EstimateJob>>;
 
+export function GetAllManualQuotes():Promise<Array<database.ManualQuote>>;
+
 export function GetAllPriceListItems():Promise<Array<database.PriceListItem>>;
 
+export function GetAllTaxRates():Promise<Array<database.TaxRate>>;
+
 export function GetCategory(arg1:number):Promise<database.Category>;
+
+export function GetCompanySettings():Promise<database.CompanySettings>;
 
 export function GetCustomer(arg1:number):Promise<database.Customer>;
 
 export function GetEstimate(arg1:number):Promise<database.EstimateJob>;
 
 export function GetEstimatesByCustomer(arg1:number):Promise<Array<database.EstimateJob>>;
+
+export function GetManualQuote(arg1:number):Promise<database.ManualQuote>;
 
 export function GetPriceListItem(arg1:number):Promise<database.PriceListItem>;
 
@@ -53,6 +69,8 @@ export function UpdateCategory(arg1:number,arg2:types.CreateCategoryRequest):Pro
 
 export function UpdateCategorySortOrder(arg1:Array<types.SortOrderUpdate>):Promise<void>;
 
+export function UpdateCompanySettings(arg1:types.UpdateCompanySettingsRequest):Promise<database.CompanySettings>;
+
 export function UpdateCustomer(arg1:number,arg2:types.CreateCustomerRequest):Promise<database.Customer>;
 
 export function UpdateEstimate(arg1:types.UpdateEstimateJobRequest):Promise<database.EstimateJob>;
@@ -63,6 +81,10 @@ export function UpdateLineItem(arg1:types.UpdateLineItemRequest):Promise<databas
 
 export function UpdateLineItemSortOrder(arg1:Array<types.SortOrderUpdate>):Promise<void>;
 
+export function UpdateManualQuote(arg1:types.UpdateManualQuoteRequest):Promise<database.ManualQuote>;
+
 export function UpdatePriceListItem(arg1:number,arg2:types.CreatePriceListItemRequest):Promise<database.PriceListItem>;
 
 export function UpdatePriceListItemSortOrder(arg1:Array<types.SortOrderUpdate>):Promise<void>;
+
+export function UpdateTaxRate(arg1:number,arg2:types.CreateTaxRateRequest):Promise<database.TaxRate>;
