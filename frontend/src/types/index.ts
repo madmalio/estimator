@@ -4,6 +4,7 @@ export interface Customer {
   address: string;
   phone: string;
   email: string;
+  archived?: boolean;
 }
 
 export interface Category {
@@ -56,6 +57,14 @@ export interface CreateCustomerRequest {
   address: string;
   phone: string;
   email: string;
+  archived?: boolean;
+}
+
+export interface CustomerPageResponse {
+  items: Customer[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface CreateCategoryRequest {
@@ -155,6 +164,20 @@ export interface ManualQuote {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ManualQuotePageResponse {
+  items: ManualQuote[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface EstimatePageResponse {
+  items: EstimateJob[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface CreateManualQuoteRequest {

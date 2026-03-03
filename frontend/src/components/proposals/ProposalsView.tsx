@@ -1,15 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import type { DraggableAttributes } from '@dnd-kit/core';
+import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
 import { Plus, ChevronLeft, Trash2, Save, Printer } from 'lucide-react';
+import { SortableList } from '../dnd/SortableList';
+import { DragHandle } from '../dnd/DragHandle';
 import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
+import { CustomerCombobox } from '../ui/CustomerCombobox';
 import { Modal } from '../ui/Modal';
 import { useToast } from '../ui/Toast';
 import { formatCurrency, formatDate } from '../../lib/utils';
+import { buildPrintDocumentHtml } from '../../lib/printHtml';
 import type {
   CompanySettings,
   Customer,
+  EstimateJob,
   ManualQuote,
   ManualQuoteLineItem,
   ManualQuoteLineItemRequest,
@@ -18,22 +25,36 @@ import type {
 import { types as wailsTypes } from '../../../wailsjs/go/models';
 import {
   GetAllCustomers,
-  GetAllManualQuotes,
+  GetManualQuotesPage,
   GetManualQuote,
   GetCompanySettings,
   CreateManualQuote,
   UpdateManualQuote,
   DeleteManualQuote,
   GetAllTaxRates,
+  GetAllEstimates,
+  GenerateProposalPDF,
+  OpenFileInDefaultApp,
 } from '../../../wailsjs/go/main/App';
 
 type ViewMode = 'list' | 'edit';
 
+interface QuickCreateForCustomer {
+  customerId: number;
+  customerName: string;
+  token: number;
+}
+
+interface ProposalsViewProps {
+  quickCreateForCustomer?: QuickCreateForCustomer | null;
+  onQuickCreateHandled?: () => void;
+}
+
 interface ManualQuoteFormState {
   customerId: number;
   jobName: string;
-  lineItems: ManualQuoteLineItemRequest[];
-  notes: QuoteNote[];
+  lineItems: EditableLineItem[];
+  notes: EditableQuoteNote[];
   paymentSchedule: string;
   includeTotals: boolean;
   subtotal: number;
@@ -47,6 +68,19 @@ interface ManualQuoteFormState {
 interface QuoteNote {
   text: string;
   includeInitials: boolean;
+}
+
+interface EditableQuoteNote extends QuoteNote {
+  clientId: string;
+}
+
+interface EditableLineItem extends ManualQuoteLineItemRequest {
+  clientId: string;
+}
+
+interface SortableEditableRowProps {
+  listeners?: SyntheticListenerMap;
+  attributes?: DraggableAttributes;
 }
 
 interface DraftLineItemState {
@@ -73,7 +107,7 @@ const defaultSignatureNote =
 
 const defaultForm: ManualQuoteFormState = {
   customerId: 0,
-  jobName: 'New Manual Quote',
+  jobName: 'New Proposal',
   lineItems: [],
   notes: [],
   paymentSchedule: '',
@@ -97,9 +131,13 @@ const defaultDraftNote: DraftNoteState = {
   includeInitials: false,
 };
 
+function createClientId(prefix: 'item' | 'note'): string {
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function parseQuoteMeta(
   descriptionBody: string
-): { notes: QuoteNote[]; includeTotals: boolean; paymentSchedule: string } {
+): { notes: EditableQuoteNote[]; includeTotals: boolean; paymentSchedule: string } {
   if (!descriptionBody || !descriptionBody.trim()) {
     return { notes: [], includeTotals: true, paymentSchedule: '' };
   }
@@ -115,6 +153,7 @@ function parseQuoteMeta(
         notes: parsed.notes
         .filter((note) => note && typeof note.text === 'string')
         .map((note) => ({
+          clientId: createClientId('note'),
           text: note.text,
           includeInitials: Boolean(note.includeInitials),
         })),
@@ -124,7 +163,7 @@ function parseQuoteMeta(
     }
   } catch {
     return {
-      notes: [{ text: descriptionBody, includeInitials: false }],
+      notes: [{ clientId: createClientId('note'), text: descriptionBody, includeInitials: false }],
       includeTotals: true,
       paymentSchedule: '',
     };
@@ -133,12 +172,19 @@ function parseQuoteMeta(
   return { notes: [], includeTotals: true, paymentSchedule: '' };
 }
 
-function stringifyQuoteMeta(notes: QuoteNote[], includeTotals: boolean, paymentSchedule: string): string {
+function stringifyQuoteMeta(notes: EditableQuoteNote[], includeTotals: boolean, paymentSchedule: string): string {
   if (notes.length === 0 && includeTotals && !paymentSchedule.trim()) {
     return '';
   }
 
-  return JSON.stringify({ notes, includeTotals, paymentSchedule });
+  return JSON.stringify({
+    notes: notes.map((note) => ({
+      text: note.text,
+      includeInitials: note.includeInitials,
+    })),
+    includeTotals,
+    paymentSchedule,
+  });
 }
 
 function getDefaultPaymentSchedule(paymentsNote: string): string {
@@ -161,7 +207,11 @@ function quoteToForm(quote: ManualQuote): ManualQuoteFormState {
   return {
     customerId: quote.customerId || 0,
     jobName: quote.jobName || '',
-    lineItems: (quote.lineItems || []).map((item: ManualQuoteLineItem) => ({
+    lineItems: (quote.lineItems || [])
+      .slice()
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+      .map((item: ManualQuoteLineItem) => ({
+      clientId: createClientId('item'),
       itemName: item.itemName || '',
       description: item.description || '',
       lineTotal: item.lineTotal || 0,
@@ -179,27 +229,37 @@ function quoteToForm(quote: ManualQuote): ManualQuoteFormState {
   };
 }
 
-export function ManualQuotesView() {
+export function ProposalsView({ quickCreateForCustomer, onQuickCreateHandled }: ProposalsViewProps) {
+  const [pageSize, setPageSize] = useState(10);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [quotes, setQuotes] = useState<ManualQuote[]>([]);
+  const [totalQuotes, setTotalQuotes] = useState(0);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [estimates, setEstimates] = useState<EstimateJob[]>([]);
   const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
   const [selectedTaxRateId, setSelectedTaxRateId] = useState<string>('');
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [currentQuote, setCurrentQuote] = useState<ManualQuote | null>(null);
+  const [isCreatingProposal, setIsCreatingProposal] = useState(false);
   const [form, setForm] = useState<ManualQuoteFormState>(defaultForm);
-  const [isTotalManual, setIsTotalManual] = useState(false);
-  const [isAmountDueManual, setIsAmountDueManual] = useState(false);
   const [draftLineItem, setDraftLineItem] = useState<DraftLineItemState>(defaultDraftLineItem);
+  const [isCustomCabinetSuggestionsOpen, setIsCustomCabinetSuggestionsOpen] = useState(false);
   const [draftNote, setDraftNote] = useState<DraftNoteState>(defaultDraftNote);
   const [quoteToDelete, setQuoteToDelete] = useState<ManualQuote | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastHandledQuickCreateToken, setLastHandledQuickCreateToken] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
 
   const selectedCustomer = useMemo(
     () => customers.find((customer) => customer.id === form.customerId),
     [customers, form.customerId]
+  );
+  const activeCustomers = useMemo(
+    () => customers.filter((customer) => !customer.archived),
+    [customers]
   );
   const proposalDefaults = useMemo(
     () => ({
@@ -215,6 +275,32 @@ export function ManualQuotesView() {
   const quoteDateText = currentQuote?.quoteDate
     ? formatDate(currentQuote.quoteDate)
     : formatDate(new Date().toISOString());
+  const matchingCustomCabinetJobs = useMemo(() => {
+    if (!selectedCustomer?.name) {
+      return [];
+    }
+
+    const customerName = selectedCustomer.name.trim().toLowerCase();
+    return estimates.filter((estimate) => {
+      const estimateCustomerName = estimate.customer?.name?.trim().toLowerCase();
+      return Boolean(estimateCustomerName) && estimateCustomerName === customerName;
+    });
+  }, [estimates, selectedCustomer]);
+  const filteredCustomCabinetSuggestions = useMemo(() => {
+    if (!form.customerId) {
+      return [];
+    }
+
+    const query = draftLineItem.itemName.trim().toLowerCase();
+    if (!query) {
+      return matchingCustomCabinetJobs;
+    }
+
+    return matchingCustomCabinetJobs.filter((estimate) =>
+      estimate.jobName.toLowerCase().includes(query) ||
+      'custom cabinets'.includes(query)
+    );
+  }, [form.customerId, draftLineItem.itemName, matchingCustomCabinetJobs]);
   const lineItemsSubtotal = useMemo(
     () => form.lineItems.reduce((sum, item) => sum + (item.lineTotal || 0), 0),
     [form.lineItems]
@@ -228,22 +314,33 @@ export function ManualQuotesView() {
     () => Number((form.total - form.depositAmount).toFixed(2)),
     [form.total, form.depositAmount]
   );
+  const totalPages = Math.max(1, Math.ceil(totalQuotes / pageSize));
 
   useEffect(() => {
-    if (!isTotalManual) {
-      setForm((prev) => ({ ...prev, total: autoTotal }));
+    setCurrentPage(1);
+  }, [searchTerm, pageSize]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
     }
-  }, [autoTotal, isTotalManual]);
+  }, [currentPage, totalPages]);
 
   useEffect(() => {
-    if (!isAmountDueManual) {
-      setForm((prev) => ({ ...prev, amountDue: autoAmountDue }));
-    }
-  }, [autoAmountDue, isAmountDueManual]);
+    setForm((prev) => (prev.total === autoTotal ? prev : { ...prev, total: autoTotal }));
+  }, [autoTotal]);
 
   useEffect(() => {
-    setForm((prev) => ({ ...prev, depositAmount: autoDepositAmount }));
+    setForm((prev) => (prev.amountDue === autoAmountDue ? prev : { ...prev, amountDue: autoAmountDue }));
+  }, [autoAmountDue]);
+
+  useEffect(() => {
+    setForm((prev) => (prev.depositAmount === autoDepositAmount ? prev : { ...prev, depositAmount: autoDepositAmount }));
   }, [autoDepositAmount]);
+
+  useEffect(() => {
+    setForm((prev) => (prev.subtotal === lineItemsSubtotal ? prev : { ...prev, subtotal: lineItemsSubtotal }));
+  }, [lineItemsSubtotal]);
 
   useEffect(() => {
     if (selectedTaxRateId) {
@@ -255,36 +352,57 @@ export function ManualQuotesView() {
     }
   }, [selectedTaxRateId, form.subtotal, taxRates]);
 
-  const fetchData = async () => {
+  const fetchStaticData = async () => {
     try {
-      const [quotesData, customersData, companySettingsData, taxRatesData] = await Promise.all([
-        GetAllManualQuotes(),
+      const [customersData, companySettingsData, taxRatesData, estimatesData] = await Promise.all([
         GetAllCustomers(),
         GetCompanySettings(),
         GetAllTaxRates(),
+        GetAllEstimates(),
       ]);
-      setQuotes((quotesData || []) as ManualQuote[]);
       setCustomers((customersData || []) as Customer[]);
       setCompanySettings((companySettingsData || null) as CompanySettings | null);
       setTaxRates((taxRatesData || []) as TaxRate[]);
+      setEstimates((estimatesData || []) as EstimateJob[]);
     } catch (error) {
       console.error('Failed to fetch manual quote data:', error);
       showToast('Failed to fetch manual quote data', 'error');
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const fetchQuotesPage = async (page = currentPage, search = searchTerm, size = pageSize) => {
+    try {
+      const response = await GetManualQuotesPage({ page, pageSize: size, search });
+      setQuotes((response?.items || []) as ManualQuote[]);
+      setTotalQuotes(response?.total || 0);
+    } catch (error) {
+      console.error('Failed to fetch manual quote list:', error);
+      showToast('Failed to fetch manual quote list', 'error');
     }
   };
 
   useEffect(() => {
-    fetchData();
+    const load = async () => {
+      await fetchStaticData();
+      await fetchQuotesPage();
+      setLoading(false);
+    };
+    void load();
   }, []);
 
-  const handleCreateQuote = async () => {
+  useEffect(() => {
+    if (loading || viewMode !== 'list') {
+      return;
+    }
+    void fetchQuotesPage();
+  }, [currentPage, searchTerm, viewMode, pageSize]);
+
+  const handleCreateQuote = async (customerId?: number, initialJobName?: string) => {
     try {
       const created = await CreateManualQuote(
         new wailsTypes.CreateManualQuoteRequest({
-        customerId: undefined,
-        jobName: defaultForm.jobName,
+        customerId: customerId || undefined,
+        jobName: initialJobName || defaultForm.jobName,
         descriptionBody: stringifyQuoteMeta(
           defaultForm.notes,
           defaultForm.includeTotals,
@@ -313,10 +431,7 @@ export function ManualQuotesView() {
           nextForm.paymentSchedule = getDefaultPaymentSchedule(proposalDefaults.paymentsNote);
         }
         setForm(nextForm);
-        setIsTotalManual(Math.abs((quote.total || 0) - ((quote.subtotal || 0) + (quote.tax || 0))) > 0.009);
-        setIsAmountDueManual(
-          Math.abs((quote.amountDue || 0) - ((quote.total || 0) - (quote.depositAmount || 0))) > 0.009
-        );
+        setIsCreatingProposal(true);
       }
       setViewMode('edit');
       const defaultRate = taxRates.find((r) => r.isDefault);
@@ -325,8 +440,8 @@ export function ManualQuotesView() {
       } else {
         setSelectedTaxRateId('');
       }
-      await fetchData();
-      showToast('Manual quote created', 'success');
+      await fetchQuotesPage();
+      showToast('Proposal created', 'success');
     } catch (error) {
       console.error('Failed to create manual quote:', error);
       showToast('Failed to create manual quote', 'error');
@@ -344,10 +459,6 @@ export function ManualQuotesView() {
           nextForm.paymentSchedule = getDefaultPaymentSchedule(proposalDefaults.paymentsNote);
         }
         setForm(nextForm);
-        setIsTotalManual(Math.abs((quote.total || 0) - ((quote.subtotal || 0) + (quote.tax || 0))) > 0.009);
-        setIsAmountDueManual(
-          Math.abs((quote.amountDue || 0) - ((quote.total || 0) - (quote.depositAmount || 0))) > 0.009
-        );
 
         // Try to find a matching tax rate
         const matchingRate = taxRates.find(
@@ -359,6 +470,7 @@ export function ManualQuotesView() {
           setSelectedTaxRateId('');
         }
       }
+      setIsCreatingProposal(false);
       setViewMode('edit');
     } catch (error) {
       console.error('Failed to load manual quote:', error);
@@ -401,12 +513,13 @@ export function ManualQuotesView() {
       const updated = await UpdateManualQuote(payload);
       const quote = (updated as ManualQuote) || null;
       setCurrentQuote(quote);
+      setIsCreatingProposal(false);
       if (quote) {
         setForm(quoteToForm(quote));
       }
-      await fetchData();
+      await fetchQuotesPage();
       if (showSuccessToast) {
-        showToast('Manual quote saved', 'success');
+        showToast('Proposal saved', 'success');
       }
       return true;
     } catch (error) {
@@ -422,6 +535,41 @@ export function ManualQuotesView() {
     window.print();
   };
 
+  const handleSaveProposalPDF = async () => {
+    if (!currentQuote) return;
+
+    const saved = await handleSaveQuote(false);
+    if (!saved) return;
+
+    try {
+      const printHtml = buildPrintDocumentHtml();
+      const filePath = await GenerateProposalPDF(currentQuote.id, printHtml);
+      showToast('PDF saved successfully', 'success');
+      await OpenFileInDefaultApp(filePath);
+    } catch (error) {
+      console.error('Failed to save proposal PDF:', error);
+      showToast('Failed to save PDF', 'error');
+    }
+  };
+
+  const handleQuickPrintQuote = async (id: number) => {
+    await handleLoadQuote(id);
+
+    setTimeout(() => {
+      const handleAfterPrint = () => {
+        window.removeEventListener('afterprint', handleAfterPrint);
+        setCurrentQuote(null);
+        setIsCreatingProposal(false);
+        setForm(defaultForm);
+        setDraftNote(defaultDraftNote);
+        setViewMode('list');
+      };
+
+      window.addEventListener('afterprint', handleAfterPrint);
+      window.print();
+    }, 60);
+  };
+
   const handleAddLineItem = () => {
     if (!draftLineItem.itemName.trim() && !draftLineItem.description.trim()) {
       showToast('Enter an item name or description', 'error');
@@ -435,6 +583,7 @@ export function ManualQuotesView() {
       lineItems: [
         ...prev.lineItems,
         {
+          clientId: createClientId('item'),
           itemName: draftLineItem.itemName.trim(),
           description: draftLineItem.description.trim(),
           lineTotal,
@@ -443,6 +592,17 @@ export function ManualQuotesView() {
       ],
     }));
     setDraftLineItem(defaultDraftLineItem);
+    setIsCustomCabinetSuggestionsOpen(false);
+  };
+
+  const applyCustomCabinetEstimateToDraft = (estimate: EstimateJob) => {
+    setDraftLineItem((prev) => ({
+      ...prev,
+      itemName: 'Custom Cabinets',
+      description: '',
+      lineTotal: (estimate.totalAmount || 0).toFixed(2),
+    }));
+    setIsCustomCabinetSuggestionsOpen(false);
   };
 
   const updateLineItem = (index: number, key: 'itemName' | 'description' | 'lineTotal', value: string) => {
@@ -469,6 +629,13 @@ export function ManualQuotesView() {
     }));
   };
 
+  const reorderLineItems = (items: EditableLineItem[]) => {
+    setForm((prev) => ({
+      ...prev,
+      lineItems: items.map((item, index) => ({ ...item, sortOrder: index })),
+    }));
+  };
+
   const handleAddNote = () => {
     if (!draftNote.text.trim()) {
       showToast('Enter a note before adding', 'error');
@@ -480,6 +647,7 @@ export function ManualQuotesView() {
       notes: [
         ...prev.notes,
         {
+          clientId: createClientId('note'),
           text: draftNote.text.trim(),
           includeInitials: draftNote.includeInitials,
         },
@@ -514,10 +682,133 @@ export function ManualQuotesView() {
     }));
   };
 
+  const reorderNotes = (notes: EditableQuoteNote[]) => {
+    setForm((prev) => ({
+      ...prev,
+      notes,
+    }));
+  };
+
+  const LineItemEditorRow = ({
+    item,
+    index,
+    listeners,
+    attributes,
+  }: {
+    item: EditableLineItem;
+    index: number;
+  } & SortableEditableRowProps) => (
+    <div className="px-3 py-2 bg-zinc-900/40 rounded">
+      <div className="grid grid-cols-[32px_1fr_44px] gap-2 items-start">
+        <div className="pt-2 flex justify-center">
+          <DragHandle listeners={listeners} attributes={attributes} />
+        </div>
+        <div className="space-y-2">
+          <div className="grid grid-cols-[1fr_120px] gap-2">
+            <Input
+              value={item.itemName}
+              onChange={(e) => updateLineItem(index, 'itemName', e.target.value)}
+            />
+            <Input
+              type="number"
+              step="0.01"
+              value={item.lineTotal || ''}
+              onChange={(e) => updateLineItem(index, 'lineTotal', e.target.value)}
+              className="text-right"
+            />
+          </div>
+          <textarea
+            rows={2}
+            value={item.description}
+            onChange={(e) => updateLineItem(index, 'description', e.target.value)}
+            placeholder="Description"
+            className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
+          />
+        </div>
+        <div className="pt-1 flex justify-center">
+          <Button variant="ghost" onClick={() => removeLineItem(index)}>
+            <Trash2 size={14} className="text-red-500" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const NoteEditorRow = ({
+    note,
+    index,
+    listeners,
+    attributes,
+  }: {
+    note: EditableQuoteNote;
+    index: number;
+  } & SortableEditableRowProps) => (
+    <div className="px-3 py-3 bg-zinc-900/40 rounded">
+      <div className="grid grid-cols-[32px_1fr] gap-2 items-start">
+        <div className="pt-1 flex justify-center">
+          <DragHandle listeners={listeners} attributes={attributes} />
+        </div>
+        <div className="space-y-2">
+          <textarea
+            rows={2}
+            value={note.text}
+            onChange={(e) => updateNote(index, e.target.value)}
+            className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
+          />
+          <div className="flex items-center justify-between">
+            <label className="inline-flex items-center gap-2 text-sm text-zinc-300">
+              <input
+                type="checkbox"
+                checked={note.includeInitials}
+                onChange={() => toggleNoteInitials(index)}
+              />
+              Include initials line
+            </label>
+            <Button variant="ghost" onClick={() => removeNote(index)}>
+              <Trash2 size={14} className="text-red-500" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const openDeleteModal = (quote: ManualQuote) => {
     setQuoteToDelete(quote);
     setIsDeleteModalOpen(true);
   };
+
+  const handleCancelNewProposal = async () => {
+    if (!currentQuote || !isCreatingProposal) return;
+
+    try {
+      await DeleteManualQuote(currentQuote.id);
+      setCurrentQuote(null);
+      setIsCreatingProposal(false);
+      setForm(defaultForm);
+      setDraftNote(defaultDraftNote);
+      setViewMode('list');
+      await fetchQuotesPage();
+      showToast('Proposal cancelled', 'success');
+    } catch (error) {
+      console.error('Failed to cancel proposal:', error);
+      showToast('Failed to cancel proposal', 'error');
+    }
+  };
+
+  useEffect(() => {
+    if (!quickCreateForCustomer || loading) {
+      return;
+    }
+
+    if (quickCreateForCustomer.token === lastHandledQuickCreateToken) {
+      return;
+    }
+
+    setLastHandledQuickCreateToken(quickCreateForCustomer.token);
+    void handleCreateQuote(quickCreateForCustomer.customerId, `New Proposal`);
+    onQuickCreateHandled?.();
+  }, [quickCreateForCustomer, loading, lastHandledQuickCreateToken, onQuickCreateHandled]);
 
   const handleDeleteQuote = async () => {
     if (!quoteToDelete) return;
@@ -526,14 +817,13 @@ export function ManualQuotesView() {
       await DeleteManualQuote(quoteToDelete.id);
       if (currentQuote?.id === quoteToDelete.id) {
         setCurrentQuote(null);
+        setIsCreatingProposal(false);
         setForm(defaultForm);
         setDraftNote(defaultDraftNote);
-        setIsTotalManual(false);
-        setIsAmountDueManual(false);
         setViewMode('list');
       }
-      await fetchData();
-      showToast('Manual quote deleted', 'success');
+      await fetchQuotesPage();
+      showToast('Proposal deleted', 'success');
     } catch (error) {
       console.error('Failed to delete manual quote:', error);
       showToast('Failed to delete manual quote', 'error');
@@ -555,18 +845,26 @@ export function ManualQuotesView() {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-zinc-100">Manual Quotes</h2>
-          <Button onClick={handleCreateQuote}>
+          <h2 className="text-2xl font-bold text-zinc-100">Proposals</h2>
+          <Button onClick={() => void handleCreateQuote()}>
             <Plus size={16} className="mr-2" />
-            New Manual Quote
+            New Proposal
           </Button>
         </div>
 
-        {quotes.length === 0 ? (
+        <Input
+          placeholder="Search proposals by number, customer, job, or date"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+
+        {totalQuotes === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-zinc-400">
-                No manual quotes yet. Create one to start building proposal-style quotes.
+                {searchTerm.trim()
+                  ? 'No proposals match your search.'
+                  : 'No proposals yet. Create one to start building proposal-style quotes.'}
               </p>
             </CardContent>
           </Card>
@@ -577,8 +875,8 @@ export function ManualQuotesView() {
                 <thead>
                   <tr className="border-b border-zinc-700 bg-zinc-800">
                     <th className="px-4 py-3 text-left text-sm font-medium text-zinc-400">Quote #</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-zinc-400">Job Name</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-zinc-400">Customer</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-zinc-400">Job Name</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-zinc-400">Date</th>
                     <th className="px-4 py-3 text-right text-sm font-medium text-zinc-400">Total</th>
                     <th className="px-4 py-3 text-right text-sm font-medium text-zinc-400">Actions</th>
@@ -592,15 +890,25 @@ export function ManualQuotesView() {
                       onClick={() => handleLoadQuote(quote.id)}
                     >
                       <td className="px-4 py-3 text-sm font-medium text-zinc-100">
-                        {quote.quoteNumber || `MQ-${quote.id.toString().padStart(4, '0')}`}
+                        {quote.quoteNumber || `P-${quote.id.toString().padStart(4, '0')}`}
                       </td>
-                      <td className="px-4 py-3 text-sm text-zinc-100">{quote.jobName || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-400">{quote.customer?.name || '-'}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-zinc-100">{quote.customer?.name || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-400">{quote.jobName || '-'}</td>
                       <td className="px-4 py-3 text-sm text-zinc-400">{formatDate(quote.quoteDate)}</td>
                       <td className="px-4 py-3 text-sm font-medium text-zinc-100 text-right">
                         {formatCurrency(quote.total || 0)}
                       </td>
                       <td className="px-4 py-3 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleQuickPrintQuote(quote.id);
+                          }}
+                        >
+                          <Printer size={14} className="text-zinc-400" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -617,6 +925,44 @@ export function ManualQuotesView() {
                 </tbody>
               </table>
             </div>
+            <div className="flex items-center justify-between border-t border-zinc-800 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-zinc-400">Rows</label>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(parseInt(e.target.value, 10) || 10)}
+                  className="px-2 py-1 text-xs border border-zinc-600 rounded bg-zinc-800 text-zinc-100"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+                <p className="text-xs text-zinc-400">
+                  Showing {totalQuotes === 0 ? 0 : (currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalQuotes)} of {totalQuotes}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <p className="text-xs text-zinc-400">
+                  Page {currentPage} of {totalPages}
+                </p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           </Card>
         )}
 
@@ -626,7 +972,7 @@ export function ManualQuotesView() {
             setQuoteToDelete(null);
             setIsDeleteModalOpen(false);
           }}
-          title="Delete Manual Quote"
+          title="Delete Proposal"
         >
           <div className="space-y-4">
             <p className="text-zinc-300">
@@ -660,7 +1006,7 @@ export function ManualQuotesView() {
           <div className="grid grid-cols-2 gap-8 mb-5">
             <div>
               <h1 className="text-[22px] font-semibold leading-none tracking-tight">
-                {companySettings?.companyName || 'Cabinet Estimator'}
+                {companySettings?.companyName || 'CabCon'}
               </h1>
               {companySettings?.addressLine1 && (
                 <p className="text-[14px] mt-3 leading-tight">{companySettings.addressLine1}</p>
@@ -788,24 +1134,35 @@ export function ManualQuotesView() {
               variant="ghost"
               onClick={() => {
                 setCurrentQuote(null);
+                setIsCreatingProposal(false);
                 setForm(defaultForm);
                 setDraftNote(defaultDraftNote);
-                setIsTotalManual(false);
-                setIsAmountDueManual(false);
                 setViewMode('list');
               }}
             >
               <ChevronLeft size={16} className="mr-1" />
               Back
             </Button>
-            <h2 className="text-2xl font-bold text-zinc-100">
-              {currentQuote?.quoteNumber || 'Manual Quote'}
-            </h2>
+            <div>
+              <h2 className="text-2xl font-bold text-zinc-100">{selectedCustomer?.name || 'No customer selected'}</h2>
+              <p className="text-sm text-zinc-400">{form.jobName || 'Proposal'}</p>
+            </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => void handleSaveQuote()}>
+            {isCreatingProposal && (
+              <Button variant="ghost" onClick={() => void handleCancelNewProposal()}>
+                Cancel
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              onClick={() => void handleSaveQuote()}
+            >
               <Save size={16} className="mr-2" />
               Save Quote
+            </Button>
+            <Button variant="secondary" onClick={() => void handleSaveProposalPDF()}>
+              Save PDF
             </Button>
             <Button onClick={handlePrintQuote}>
               <Printer size={16} className="mr-2" />
@@ -814,28 +1171,25 @@ export function ManualQuotesView() {
           </div>
         </div>
 
-        <div className="space-y-4 max-w-5xl">
-        <div className="space-y-4">
+        <div className="space-y-4 w-full">
+        <div className="space-y-4 w-full">
           <Card>
             <CardHeader>
               <h3 className="font-semibold text-zinc-100">Quote Details</h3>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <Select
+                <CustomerCombobox
                   label="Customer"
-                  value={form.customerId ? form.customerId.toString() : ''}
-                  onChange={(value) =>
+                  customers={activeCustomers}
+                  value={form.customerId}
+                  onChange={(customerId) =>
                     setForm((prev) => ({
                       ...prev,
-                      customerId: parseInt(value, 10) || 0,
+                      customerId,
                     }))
                   }
-                  options={customers.map((customer) => ({
-                    value: customer.id,
-                    label: customer.name,
-                  }))}
-                  placeholder="Select customer..."
+                  placeholder="Search customer..."
                 />
                 <Input
                   label="Job Name"
@@ -867,13 +1221,37 @@ export function ManualQuotesView() {
 
                 <div className="space-y-2">
                   <div className="grid grid-cols-[1fr_140px_110px] gap-2">
-                    <Input
-                      placeholder="Item"
-                      value={draftLineItem.itemName}
-                      onChange={(e) =>
-                        setDraftLineItem((prev) => ({ ...prev, itemName: e.target.value }))
-                      }
-                    />
+                    <div className="relative">
+                      <Input
+                        placeholder="Item"
+                        value={draftLineItem.itemName}
+                        onFocus={() => setIsCustomCabinetSuggestionsOpen(true)}
+                        onBlur={() => {
+                          setTimeout(() => setIsCustomCabinetSuggestionsOpen(false), 120);
+                        }}
+                        onChange={(e) =>
+                          setDraftLineItem((prev) => ({ ...prev, itemName: e.target.value }))
+                        }
+                      />
+                      {isCustomCabinetSuggestionsOpen && filteredCustomCabinetSuggestions.length > 0 && (
+                        <div className="absolute z-20 mt-1 w-full max-h-52 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-900 shadow-lg">
+                          {filteredCustomCabinetSuggestions.map((estimate) => (
+                            <button
+                              key={estimate.jobId}
+                              type="button"
+                              className="w-full px-3 py-2 text-left text-sm text-zinc-200 hover:bg-zinc-800"
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                applyCustomCabinetEstimateToDraft(estimate);
+                              }}
+                            >
+                              <p className="font-medium">{estimate.jobName}</p>
+                              <p className="text-xs text-zinc-400">Custom Cabinets - {formatCurrency(estimate.totalAmount || 0)}</p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <Input
                       placeholder="Total"
                       type="number"
@@ -897,7 +1275,8 @@ export function ManualQuotesView() {
                 </div>
 
                 <div className="rounded-lg border border-zinc-700 overflow-hidden">
-                  <div className="grid grid-cols-[1fr_120px_70px] gap-2 px-3 py-2 bg-zinc-800 text-xs uppercase tracking-wide text-zinc-400">
+                  <div className="grid grid-cols-[28px_1fr_120px_70px] gap-2 px-3 py-2 bg-zinc-800 text-xs uppercase tracking-wide text-zinc-400">
+                    <span></span>
                     <span>Item</span>
                     <span className="text-right">Total</span>
                     <span></span>
@@ -906,35 +1285,16 @@ export function ManualQuotesView() {
                   {form.lineItems.length === 0 ? (
                     <div className="px-3 py-4 text-sm text-zinc-500">No line items yet</div>
                   ) : (
-                    <div className="divide-y divide-zinc-800">
-                      {form.lineItems.map((item, index) => (
-                        <div key={`${item.itemName}-${index}`} className="px-3 py-2 space-y-2">
-                          <div className="grid grid-cols-[1fr_120px_70px] gap-2">
-                            <Input
-                              value={item.itemName}
-                              onChange={(e) => updateLineItem(index, 'itemName', e.target.value)}
-                            />
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={item.lineTotal || ''}
-                              onChange={(e) => updateLineItem(index, 'lineTotal', e.target.value)}
-                              className="text-right"
-                            />
-                            <Button variant="ghost" onClick={() => removeLineItem(index)}>
-                              <Trash2 size={14} className="text-red-500" />
-                            </Button>
-                          </div>
-                          <textarea
-                            rows={2}
-                            value={item.description}
-                            onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                            placeholder="Description"
-                            className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
-                          />
-                        </div>
-                      ))}
-                    </div>
+                    <SortableList
+                      items={form.lineItems}
+                      onReorder={reorderLineItems}
+                      keyExtractor={(item) => item.clientId}
+                      className="space-y-2 p-2"
+                      renderItem={(item) => {
+                        const index = form.lineItems.findIndex((entry) => entry.clientId === item.clientId);
+                        return <LineItemEditorRow item={item} index={index} />;
+                      }}
+                    />
                   )}
                 </div>
               </div>
@@ -974,31 +1334,16 @@ export function ManualQuotesView() {
                   {form.notes.length === 0 ? (
                     <div className="px-3 py-4 text-sm text-zinc-500">No notes yet</div>
                   ) : (
-                    <div className="divide-y divide-zinc-800">
-                      {form.notes.map((note, index) => (
-                        <div key={`${note.text}-${index}`} className="px-3 py-3 space-y-2">
-                          <textarea
-                            rows={2}
-                            value={note.text}
-                            onChange={(e) => updateNote(index, e.target.value)}
-                            className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
-                          />
-                          <div className="flex items-center justify-between">
-                            <label className="inline-flex items-center gap-2 text-sm text-zinc-300">
-                              <input
-                                type="checkbox"
-                                checked={note.includeInitials}
-                                onChange={() => toggleNoteInitials(index)}
-                              />
-                              Include initials line
-                            </label>
-                            <Button variant="ghost" onClick={() => removeNote(index)}>
-                              <Trash2 size={14} className="text-red-500" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <SortableList
+                      items={form.notes}
+                      onReorder={reorderNotes}
+                      keyExtractor={(note) => note.clientId}
+                      className="space-y-2 p-2"
+                      renderItem={(note) => {
+                        const index = form.notes.findIndex((entry) => entry.clientId === note.clientId);
+                        return <NoteEditorRow note={note} index={index} />;
+                      }}
+                    />
                   )}
                 </div>
               </CardContent>
@@ -1028,9 +1373,7 @@ export function ManualQuotesView() {
                   type="number"
                   step="0.01"
                   value={form.subtotal === 0 ? '' : form.subtotal.toFixed(2)}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, subtotal: parseFloat(e.target.value) || 0 }))
-                  }
+                  readOnly
                 />
                 <Select
                   label="Tax Rate"
@@ -1056,10 +1399,7 @@ export function ManualQuotesView() {
                   type="number"
                   step="0.01"
                   value={form.total === 0 ? '' : form.total.toFixed(2)}
-                  onChange={(e) => {
-                    setIsTotalManual(true);
-                    setForm((prev) => ({ ...prev, total: parseFloat(e.target.value) || 0 }));
-                  }}
+                  readOnly
                 />
                 <Input
                   label="Payment Schedule"
@@ -1088,10 +1428,7 @@ export function ManualQuotesView() {
                   type="number"
                   step="0.01"
                   value={form.amountDue === 0 ? '' : form.amountDue.toFixed(2)}
-                  onChange={(e) => {
-                    setIsAmountDueManual(true);
-                    setForm((prev) => ({ ...prev, amountDue: parseFloat(e.target.value) || 0 }));
-                  }}
+                  readOnly
                 />
               </CardContent>
             </Card>

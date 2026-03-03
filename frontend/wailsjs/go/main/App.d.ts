@@ -31,7 +31,9 @@ export function DeletePriceListItem(arg1:number):Promise<void>;
 
 export function DeleteTaxRate(arg1:number):Promise<void>;
 
-export function GenerateEstimatePDF(arg1:number):Promise<string>;
+export function GenerateEstimatePDF(arg1:number,arg2:string):Promise<string>;
+
+export function GenerateProposalPDF(arg1:number,arg2:string):Promise<string>;
 
 export function GetAllCategories():Promise<Array<database.Category>>;
 
@@ -53,11 +55,17 @@ export function GetCompanySettings():Promise<database.CompanySettings>;
 
 export function GetCustomer(arg1:number):Promise<database.Customer>;
 
+export function GetCustomersPage(arg1:types.CustomerPageRequest):Promise<types.CustomerPageResponse>;
+
 export function GetEstimate(arg1:number):Promise<database.EstimateJob>;
 
 export function GetEstimatesByCustomer(arg1:number):Promise<Array<database.EstimateJob>>;
 
+export function GetEstimatesPage(arg1:types.EstimatePageRequest):Promise<types.EstimatePageResponse>;
+
 export function GetManualQuote(arg1:number):Promise<database.ManualQuote>;
+
+export function GetManualQuotesPage(arg1:types.ManualQuotePageRequest):Promise<types.ManualQuotePageResponse>;
 
 export function GetPriceListItem(arg1:number):Promise<database.PriceListItem>;
 

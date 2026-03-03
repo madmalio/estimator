@@ -3,6 +3,7 @@ package services
 import (
 	"cabinet-estimator/internal/database"
 	"cabinet-estimator/internal/types"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -27,6 +28,71 @@ func (s *EstimateService) GetAll() ([]database.EstimateJob, error) {
 		Order("sort_order DESC, estimate_date DESC").
 		Find(&jobs).Error
 	return jobs, err
+}
+
+func (s *EstimateService) GetPage(req types.EstimatePageRequest) (*types.EstimatePageResponse, error) {
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+
+	pageSize := req.PageSize
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+
+	baseQuery := s.db.Model(&database.EstimateJob{}).
+		Joins("LEFT JOIN customers ON customers.id = estimate_jobs.customer_id").
+		Where("customers.archived = ?", false)
+
+	search := strings.TrimSpace(req.Search)
+	if search != "" {
+		like := "%" + strings.ToLower(search) + "%"
+		baseQuery = baseQuery.Where(
+			"LOWER(estimate_jobs.job_name) LIKE ? OR LOWER(customers.name) LIKE ? OR strftime('%m/%d/%Y', estimate_jobs.estimate_date) LIKE ?",
+			like,
+			like,
+			like,
+		)
+	}
+
+	var total int64
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	var jobs []database.EstimateJob
+	listQuery := s.db.Preload("Customer").
+		Preload("LineItems", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
+		Joins("LEFT JOIN customers ON customers.id = estimate_jobs.customer_id").
+		Where("customers.archived = ?", false)
+
+	if search != "" {
+		like := "%" + strings.ToLower(search) + "%"
+		listQuery = listQuery.Where(
+			"LOWER(estimate_jobs.job_name) LIKE ? OR LOWER(customers.name) LIKE ? OR strftime('%m/%d/%Y', estimate_jobs.estimate_date) LIKE ?",
+			like,
+			like,
+			like,
+		)
+	}
+
+	queryErr := listQuery.Order("estimate_jobs.sort_order DESC, estimate_jobs.estimate_date DESC").
+		Offset((page - 1) * pageSize).
+		Limit(pageSize).
+		Find(&jobs).Error
+	if queryErr != nil {
+		return nil, queryErr
+	}
+
+	return &types.EstimatePageResponse{
+		Items:    jobs,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
 }
 
 func (s *EstimateService) GetByID(id uint) (*database.EstimateJob, error) {

@@ -1,214 +1,211 @@
 package services
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
-	"github.com/jung-kurt/gofpdf"
+	"github.com/chromedp/cdproto/emulation"
+	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/chromedp"
 )
 
 type PDFService struct {
-	estimateService *EstimateService
+	estimateService    *EstimateService
+	manualQuoteService *ManualQuoteService
 }
 
 func NewPDFService() *PDFService {
 	return &PDFService{
-		estimateService: NewEstimateService(),
+		estimateService:    NewEstimateService(),
+		manualQuoteService: NewManualQuoteService(),
 	}
 }
 
-// Company info - edit these values as needed
-const (
-	companyName    = "Your Company Name"
-	companyAddress = "123 Main Street"
-	companyCity    = "City, State 12345"
-	companyPhone   = "(555) 123-4567"
-	companyEmail   = "info@yourcompany.com"
-)
+func documentsBaseDir(section string, createdAt time.Time) (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
 
-func (s *PDFService) GenerateEstimatePDF(jobID uint) (string, error) {
-	// Get the estimate with all related data
+	yearFolder := createdAt.Format("2006")
+	monthFolder := createdAt.Format("January")
+	baseDir := filepath.Join(homeDir, "Documents", "CabCon", section, yearFolder, monthFolder)
+
+	if err := os.MkdirAll(baseDir, 0o755); err != nil {
+		return "", err
+	}
+
+	return baseDir, nil
+}
+
+func sanitizeFilePart(value string) string {
+	replacer := strings.NewReplacer(
+		"<", "",
+		">", "",
+		":", "",
+		"\"", "",
+		"/", "-",
+		"\\", "-",
+		"|", "",
+		"?", "",
+		"*", "",
+	)
+	sanitized := strings.TrimSpace(replacer.Replace(value))
+	if sanitized == "" {
+		return "Untitled"
+	}
+	return sanitized
+}
+
+func (s *PDFService) resolveChromiumPath() (string, error) {
+	if customPath := strings.TrimSpace(os.Getenv("CABCON_CHROMIUM_PATH")); customPath != "" {
+		if _, err := os.Stat(customPath); err == nil {
+			return customPath, nil
+		}
+	}
+
+	exePath, err := os.Executable()
+	if err == nil {
+		exeDir := filepath.Dir(exePath)
+		candidates := []string{
+			filepath.Join(exeDir, "chromium", "chrome.exe"),
+			filepath.Join(exeDir, "resources", "chromium", "chrome.exe"),
+			filepath.Join(exeDir, "chrome-win", "chrome.exe"),
+		}
+		for _, candidate := range candidates {
+			if _, statErr := os.Stat(candidate); statErr == nil {
+				return candidate, nil
+			}
+		}
+	}
+
+	return "", errors.New("bundled chromium not found; set CABCON_CHROMIUM_PATH or include chromium/chrome.exe with the app")
+}
+
+func (s *PDFService) renderHTMLToPDF(html string, filePath string) error {
+	chromePath, err := s.resolveChromiumPath()
+	if err != nil {
+		return err
+	}
+
+	allocatorOpts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.ExecPath(chromePath),
+		chromedp.NoDefaultBrowserCheck,
+		chromedp.NoFirstRun,
+		chromedp.Flag("headless", true),
+		chromedp.Flag("disable-gpu", true),
+		chromedp.Flag("disable-dev-shm-usage", true),
+		chromedp.Flag("allow-file-access-from-files", true),
+	)
+
+	allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), allocatorOpts...)
+	defer cancelAlloc()
+
+	ctx, cancelCtx := chromedp.NewContext(allocCtx)
+	defer cancelCtx()
+
+	ctx, cancelTimeout := context.WithTimeout(ctx, 40*time.Second)
+	defer cancelTimeout()
+
+	var pdfBytes []byte
+	if err := chromedp.Run(ctx,
+		chromedp.Navigate("about:blank"),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			return emulation.SetEmulatedMedia().WithMedia("print").Do(ctx)
+		}),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			frameTree, frameErr := page.GetFrameTree().Do(ctx)
+			if frameErr != nil {
+				return frameErr
+			}
+			return page.SetDocumentContent(frameTree.Frame.ID, html).Do(ctx)
+		}),
+		chromedp.Sleep(300*time.Millisecond),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			data, _, printErr := page.PrintToPDF().
+				WithPrintBackground(true).
+				WithPreferCSSPageSize(true).
+				Do(ctx)
+			if printErr != nil {
+				return printErr
+			}
+			pdfBytes = data
+			return nil
+		}),
+	); err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(filePath, pdfBytes, 0o644); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *PDFService) GenerateEstimatePDF(jobID uint, html string) (string, error) {
 	job, err := s.estimateService.GetByID(jobID)
 	if err != nil {
 		return "", err
 	}
 
-	// Create PDF
-	pdf := gofpdf.New("P", "mm", "Letter", "")
-	pdf.SetMargins(15, 15, 15)
-	pdf.AddPage()
-
-	// Company Header
-	pdf.SetFont("Arial", "B", 18)
-	pdf.Cell(0, 10, companyName)
-	pdf.Ln(8)
-
-	pdf.SetFont("Arial", "", 10)
-	pdf.Cell(0, 5, companyAddress)
-	pdf.Ln(5)
-	pdf.Cell(0, 5, companyCity)
-	pdf.Ln(5)
-	pdf.Cell(0, 5, fmt.Sprintf("Phone: %s | Email: %s", companyPhone, companyEmail))
-	pdf.Ln(12)
-
-	// Estimate Title
-	pdf.SetFont("Arial", "B", 14)
-	pdf.Cell(0, 8, "ESTIMATE")
-	pdf.Ln(10)
-
-	// Customer Info and Job Details side by side
-	pdf.SetFont("Arial", "B", 10)
-	pdf.Cell(90, 6, "Customer Information")
-	pdf.Cell(90, 6, "Estimate Details")
-	pdf.Ln(6)
-
-	pdf.SetFont("Arial", "", 10)
-	pdf.Cell(90, 5, job.Customer.Name)
-	pdf.Cell(90, 5, fmt.Sprintf("Job: %s", job.JobName))
-	pdf.Ln(5)
-
-	if job.Customer.Address != "" {
-		pdf.Cell(90, 5, job.Customer.Address)
-	} else {
-		pdf.Cell(90, 5, "")
-	}
-	pdf.Cell(90, 5, fmt.Sprintf("Date: %s", job.EstimateDate.Format("January 2, 2006")))
-	pdf.Ln(5)
-
-	if job.Customer.Phone != "" {
-		pdf.Cell(90, 5, fmt.Sprintf("Phone: %s", job.Customer.Phone))
-	} else {
-		pdf.Cell(90, 5, "")
-	}
-	pdf.Cell(90, 5, fmt.Sprintf("Estimate #: %d", job.JobID))
-	pdf.Ln(5)
-
-	if job.Customer.Email != "" {
-		pdf.Cell(90, 5, fmt.Sprintf("Email: %s", job.Customer.Email))
-	}
-	pdf.Ln(12)
-
-	// Line Items Table Header
-	pdf.SetFillColor(240, 240, 240)
-	pdf.SetFont("Arial", "B", 10)
-
-	colWidths := []float64{80, 30, 35, 35}
-	headers := []string{"Description", "Quantity", "Unit Price", "Total"}
-
-	for i, header := range headers {
-		pdf.CellFormat(colWidths[i], 8, header, "1", 0, "C", true, 0, "")
-	}
-	pdf.Ln(8)
-
-	// Line Items
-	pdf.SetFont("Arial", "", 10)
-	var subtotal float64
-
-	for _, item := range job.LineItems {
-		// Description (left-aligned)
-		displayName := item.ItemName
-		if item.CategoryName != "" {
-			displayName = fmt.Sprintf("%s - %s", item.CategoryName, item.ItemName)
-		}
-		pdf.CellFormat(colWidths[0], 7, truncateText(pdf, displayName, colWidths[0]-2), "1", 0, "L", false, 0, "")
-
-		// Quantity (center-aligned)
-		pdf.CellFormat(colWidths[1], 7, fmt.Sprintf("%.2f", item.Quantity), "1", 0, "C", false, 0, "")
-
-		// Unit Price (right-aligned)
-		pdf.CellFormat(colWidths[2], 7, fmt.Sprintf("$%.2f", item.UnitPrice), "1", 0, "R", false, 0, "")
-
-		// Line Total (right-aligned)
-		pdf.CellFormat(colWidths[3], 7, fmt.Sprintf("$%.2f", item.LineTotal), "1", 0, "R", false, 0, "")
-		pdf.Ln(7)
-
-		subtotal += item.LineTotal
+	customerName := "Unknown"
+	if job.Customer.Name != "" {
+		customerName = job.Customer.Name
 	}
 
-	pdf.Ln(5)
-
-	// Totals Section
-	totalsX := 115.0
-	labelWidth := 45.0
-	valueWidth := 35.0
-
-	// Subtotal
-	pdf.SetX(totalsX)
-	pdf.SetFont("Arial", "", 10)
-	pdf.Cell(labelWidth, 6, "Subtotal:")
-	pdf.Cell(valueWidth, 6, fmt.Sprintf("$%.2f", subtotal))
-	pdf.Ln(6)
-
-	// Markup
-	if job.MarkupPercent > 0 {
-		markupAmount := subtotal * (job.MarkupPercent / 100)
-		pdf.SetX(totalsX)
-		pdf.Cell(labelWidth, 6, fmt.Sprintf("Markup (%.1f%%):", job.MarkupPercent))
-		pdf.Cell(valueWidth, 6, fmt.Sprintf("$%.2f", markupAmount))
-		pdf.Ln(6)
+	outputDir, err := documentsBaseDir("Custom Cabinets", job.EstimateDate)
+	if err != nil {
+		return "", err
 	}
 
-	// Installation
-	if job.InstallTotal > 0 {
-		pdf.SetX(totalsX)
-		pdf.Cell(labelWidth, 6, "Installation:")
-		pdf.Cell(valueWidth, 6, fmt.Sprintf("$%.2f", job.InstallTotal))
-		pdf.Ln(6)
-	}
-
-	// Misc Charge
-	if job.MiscCharge > 0 {
-		pdf.SetX(totalsX)
-		pdf.Cell(labelWidth, 6, "Misc. Charges:")
-		pdf.Cell(valueWidth, 6, fmt.Sprintf("$%.2f", job.MiscCharge))
-		pdf.Ln(6)
-	}
-
-	// Grand Total
-	pdf.SetX(totalsX)
-	pdf.SetFont("Arial", "B", 12)
-	pdf.Cell(labelWidth, 8, "TOTAL:")
-	pdf.Cell(valueWidth, 8, fmt.Sprintf("$%.2f", job.TotalAmount))
-	pdf.Ln(15)
-
-	// Footer Notes
-	pdf.SetFont("Arial", "I", 9)
-	pdf.MultiCell(0, 5, "This estimate is valid for 30 days from the date above. Prices are subject to change based on material availability and scope modifications.", "", "L", false)
-
-	// Save to a user-visible folder when possible
-	outputDir := os.TempDir()
-	if homeDir, homeErr := os.UserHomeDir(); homeErr == nil {
-		documentsDir := filepath.Join(homeDir, "Documents", "CabinetEstimator")
-		if mkdirErr := os.MkdirAll(documentsDir, 0o755); mkdirErr == nil {
-			outputDir = documentsDir
-		}
-	}
-
-	timestamp := time.Now().Format("20060102-150405")
-	filename := fmt.Sprintf("Estimate_%d_%s.pdf", job.JobID, timestamp)
+	filename := fmt.Sprintf(
+		"%s_%s_%s.pdf",
+		job.EstimateDate.Format("01-02-2006"),
+		sanitizeFilePart(customerName),
+		sanitizeFilePart(job.JobName),
+	)
 	filePath := filepath.Join(outputDir, filename)
 
-	err = pdf.OutputFileAndClose(filePath)
-	if err != nil {
+	if err := s.renderHTMLToPDF(html, filePath); err != nil {
 		return "", err
 	}
 
 	return filePath, nil
 }
 
-// truncateText truncates text to fit within a given width
-func truncateText(pdf *gofpdf.Fpdf, text string, maxWidth float64) string {
-	if pdf.GetStringWidth(text) <= maxWidth {
-		return text
+func (s *PDFService) GenerateManualQuotePDF(quoteID uint, html string) (string, error) {
+	quote, err := s.manualQuoteService.GetByID(quoteID)
+	if err != nil {
+		return "", err
 	}
 
-	for len(text) > 0 {
-		text = text[:len(text)-1]
-		if pdf.GetStringWidth(text+"...") <= maxWidth {
-			return text + "..."
-		}
+	customerName := "Unknown"
+	if quote.Customer != nil && quote.Customer.Name != "" {
+		customerName = quote.Customer.Name
 	}
-	return "..."
+
+	outputDir, err := documentsBaseDir("Proposals", quote.QuoteDate)
+	if err != nil {
+		return "", err
+	}
+
+	filename := fmt.Sprintf(
+		"%s_%s_%s.pdf",
+		quote.QuoteDate.Format("01-02-2006"),
+		sanitizeFilePart(customerName),
+		sanitizeFilePart(quote.JobName),
+	)
+	filePath := filepath.Join(outputDir, filename)
+
+	if err := s.renderHTMLToPDF(html, filePath); err != nil {
+		return "", err
+	}
+
+	return filePath, nil
 }

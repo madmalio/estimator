@@ -54,6 +54,10 @@ func (a *App) GetAllCustomers() ([]database.Customer, error) {
 	return a.customerService.GetAll()
 }
 
+func (a *App) GetCustomersPage(req types.CustomerPageRequest) (*types.CustomerPageResponse, error) {
+	return a.customerService.GetPage(req)
+}
+
 func (a *App) GetCustomer(id uint) (*database.Customer, error) {
 	return a.customerService.GetByID(id)
 }
@@ -136,6 +140,10 @@ func (a *App) GetAllEstimates() ([]database.EstimateJob, error) {
 	return a.estimateService.GetAll()
 }
 
+func (a *App) GetEstimatesPage(req types.EstimatePageRequest) (*types.EstimatePageResponse, error) {
+	return a.estimateService.GetPage(req)
+}
+
 func (a *App) GetEstimate(id uint) (*database.EstimateJob, error) {
 	return a.estimateService.GetByID(id)
 }
@@ -182,6 +190,10 @@ func (a *App) GetAllManualQuotes() ([]database.ManualQuote, error) {
 	return a.manualQuoteService.GetAll()
 }
 
+func (a *App) GetManualQuotesPage(req types.ManualQuotePageRequest) (*types.ManualQuotePageResponse, error) {
+	return a.manualQuoteService.GetPage(req)
+}
+
 func (a *App) GetManualQuote(id uint) (*database.ManualQuote, error) {
 	return a.manualQuoteService.GetByID(id)
 }
@@ -200,8 +212,12 @@ func (a *App) DeleteManualQuote(id uint) error {
 
 // ==================== PDF Methods ====================
 
-func (a *App) GenerateEstimatePDF(jobID uint) (string, error) {
-	return a.pdfService.GenerateEstimatePDF(jobID)
+func (a *App) GenerateEstimatePDF(jobID uint, html string) (string, error) {
+	return a.pdfService.GenerateEstimatePDF(jobID, html)
+}
+
+func (a *App) GenerateProposalPDF(quoteID uint, html string) (string, error) {
+	return a.pdfService.GenerateManualQuotePDF(quoteID, html)
 }
 
 func (a *App) OpenFileInDefaultApp(filePath string) error {

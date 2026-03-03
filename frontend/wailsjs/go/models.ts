@@ -98,6 +98,7 @@ export namespace database {
 	    address: string;
 	    phone: string;
 	    email: string;
+	    archived: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Customer(source);
@@ -110,6 +111,7 @@ export namespace database {
 	        this.address = source["address"];
 	        this.phone = source["phone"];
 	        this.email = source["email"];
+	        this.archived = source["archived"];
 	    }
 	}
 	export class EstimateLineItem {
@@ -353,6 +355,7 @@ export namespace types {
 	    address: string;
 	    phone: string;
 	    email: string;
+	    archived: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new CreateCustomerRequest(source);
@@ -364,6 +367,7 @@ export namespace types {
 	        this.address = source["address"];
 	        this.phone = source["phone"];
 	        this.email = source["email"];
+	        this.archived = source["archived"];
 	    }
 	}
 	export class CreateEstimateJobRequest {
@@ -512,7 +516,165 @@ export namespace types {
 	        this.isDefault = source["isDefault"];
 	    }
 	}
+	export class CustomerPageRequest {
+	    page: number;
+	    pageSize: number;
+	    search: string;
+	    showArchived: boolean;
 	
+	    static createFrom(source: any = {}) {
+	        return new CustomerPageRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
+	        this.search = source["search"];
+	        this.showArchived = source["showArchived"];
+	    }
+	}
+	export class CustomerPageResponse {
+	    items: database.Customer[];
+	    total: number;
+	    page: number;
+	    pageSize: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CustomerPageResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.items = this.convertValues(source["items"], database.Customer);
+	        this.total = source["total"];
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class EstimatePageRequest {
+	    page: number;
+	    pageSize: number;
+	    search: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new EstimatePageRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
+	        this.search = source["search"];
+	    }
+	}
+	export class EstimatePageResponse {
+	    items: database.EstimateJob[];
+	    total: number;
+	    page: number;
+	    pageSize: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EstimatePageResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.items = this.convertValues(source["items"], database.EstimateJob);
+	        this.total = source["total"];
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class ManualQuotePageRequest {
+	    page: number;
+	    pageSize: number;
+	    search: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ManualQuotePageRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
+	        this.search = source["search"];
+	    }
+	}
+	export class ManualQuotePageResponse {
+	    items: database.ManualQuote[];
+	    total: number;
+	    page: number;
+	    pageSize: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ManualQuotePageResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.items = this.convertValues(source["items"], database.ManualQuote);
+	        this.total = source["total"];
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class SortOrderUpdate {
 	    id: number;
 	    sortOrder: number;

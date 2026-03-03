@@ -13,6 +13,8 @@ import type { Category, PriceListItem, SortOrderUpdate } from '../../types';
 
 interface CategoryCardProps {
   category: Category;
+  isExpanded: boolean;
+  onToggleExpanded: () => void;
   onUpdateCategory: (id: number, name: string) => void;
   onDeleteCategory: (id: number) => void;
   onAddItem: (categoryId: number, itemName: string, unitPrice: number) => void;
@@ -25,6 +27,8 @@ interface CategoryCardProps {
 
 export function CategoryCard({
   category,
+  isExpanded,
+  onToggleExpanded,
   onUpdateCategory,
   onDeleteCategory,
   onAddItem,
@@ -34,7 +38,6 @@ export function CategoryCard({
   listeners,
   attributes,
 }: CategoryCardProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [categoryName, setCategoryName] = useState(category.name);
   const [isAddingItem, setIsAddingItem] = useState(false);
@@ -78,7 +81,7 @@ export function CategoryCard({
         <DragHandle listeners={listeners} attributes={attributes} />
 
           <button
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={onToggleExpanded}
             className="p-1 text-zinc-400 hover:text-zinc-200"
           >
           {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}

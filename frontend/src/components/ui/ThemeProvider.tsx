@@ -1,7 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { GetCompanySettings } from '../../../wailsjs/go/main/App';
 
-type Theme = 'light' | 'dark' | 'system';
+export type Theme = 'light' | 'dark' | 'system';
+
+function normalizeTheme(value?: string): Theme {
+  if (value === 'light' || value === 'dark' || value === 'system') {
+    return value;
+  }
+  return 'system';
+}
 
 interface ThemeContextValue {
   theme: Theme;
@@ -18,7 +25,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       try {
         const settings = await GetCompanySettings();
         if (settings?.theme) {
-          setTheme(settings.theme as Theme);
+          setTheme(normalizeTheme(settings.theme));
         }
       } catch (error) {
         console.error('Failed to load theme setting:', error);
@@ -54,7 +61,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme: (nextTheme) => setTheme(normalizeTheme(nextTheme)) }}>
       {children}
     </ThemeContext.Provider>
   );

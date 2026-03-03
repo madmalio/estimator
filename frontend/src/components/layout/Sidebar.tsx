@@ -1,5 +1,5 @@
-import React from 'react';
-import { FileText, Users, List, Settings, Clipboard } from 'lucide-react';
+import React, { useState } from 'react';
+import { FileText, Users, List, Settings, Clipboard, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export type ViewType = 'estimates' | 'manualquotes' | 'customers' | 'pricelist' | 'settings';
@@ -15,41 +15,80 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-const navItems: NavItem[] = [
-  { id: 'estimates', label: 'Cabinet Estimates', icon: <FileText size={20} /> },
-  { id: 'manualquotes', label: 'Manual Quotes', icon: <Clipboard size={20} /> },
+const mainNavItems: NavItem[] = [
   { id: 'customers', label: 'Customers', icon: <Users size={20} /> },
-  { id: 'pricelist', label: 'Price List', icon: <List size={20} /> },
-  { id: 'settings', label: 'Settings', icon: <Settings size={20} /> },
+  { id: 'manualquotes', label: 'Proposals', icon: <Clipboard size={20} /> },
+  { id: 'estimates', label: 'Custom Cabinets', icon: <FileText size={20} /> },
+  { id: 'pricelist', label: 'Price Lists', icon: <List size={20} /> },
 ];
 
+const settingsNavItem: NavItem = { id: 'settings', label: 'Settings', icon: <Settings size={20} /> };
+
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   return (
-    <aside className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col no-print">
-      <div className="px-4 py-5 border-b border-zinc-800">
-        <h1 className="text-xl font-bold text-zinc-100">Cabinet Estimator</h1>
+    <aside
+      className={cn(
+        'bg-zinc-900 border-r border-zinc-800 flex flex-col no-print transition-all duration-200',
+        isCollapsed ? 'w-20' : 'w-64'
+      )}
+    >
+      <div className="px-3 py-4 border-b border-zinc-800">
+        <div className={cn('flex items-center', isCollapsed ? 'justify-center' : 'justify-between')}>
+          {!isCollapsed && (
+            <h1 className="text-zinc-100 font-bold whitespace-nowrap text-xl">CabCon</h1>
+          )}
+          <button
+            type="button"
+            onClick={() => setIsCollapsed((prev) => !prev)}
+            className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
+        </div>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => (
+        {mainNavItems.map((item) => (
           <button
             key={item.id}
             onClick={() => onViewChange(item.id)}
+            title={isCollapsed ? item.label : undefined}
             className={cn(
-              'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+              'w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+              isCollapsed ? 'justify-center' : 'gap-3',
               activeView === item.id
                 ? 'bg-zinc-800 text-zinc-100'
                 : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
             )}
           >
             {item.icon}
-            {item.label}
+            {!isCollapsed && item.label}
           </button>
         ))}
       </nav>
 
+      <div className="px-3 pb-3">
+        <button
+          onClick={() => onViewChange(settingsNavItem.id)}
+          title={isCollapsed ? settingsNavItem.label : undefined}
+          className={cn(
+            'w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+            isCollapsed ? 'justify-center' : 'gap-3',
+            activeView === settingsNavItem.id
+              ? 'bg-zinc-800 text-zinc-100'
+              : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
+          )}
+        >
+          {settingsNavItem.icon}
+          {!isCollapsed && settingsNavItem.label}
+        </button>
+      </div>
+
       <div className="px-4 py-3 border-t border-zinc-800">
-        <p className="text-xs text-zinc-500">v1.0.0</p>
+        <p className={cn('text-zinc-500', isCollapsed ? 'text-[10px] text-center' : 'text-xs')}>v1.0.0</p>
       </div>
     </aside>
   );

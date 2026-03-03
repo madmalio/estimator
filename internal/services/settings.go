@@ -39,7 +39,7 @@ func (s *SettingsService) GetCompanySettings() (*database.CompanySettings, error
 
 	defaults := database.CompanySettings{
 		ID:                    1,
-		CompanyName:           "Cabinet Estimator",
+		CompanyName:           "CabCon",
 		Theme:                 "system",
 		DefaultTermsBlock1:    defaultTermsBlock1,
 		DefaultTermsBlock2:    defaultTermsBlock2,

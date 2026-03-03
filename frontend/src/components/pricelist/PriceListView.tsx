@@ -18,8 +18,25 @@ import {
   UpdatePriceListItemSortOrder,
 } from '../../../wailsjs/go/main/App';
 
+const collapsedCategoriesStorageKey = 'cabcon:pricelist:collapsed-categories';
+
+function readCollapsedCategoryIds(): number[] {
+  try {
+    const raw = localStorage.getItem(collapsedCategoriesStorageKey);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value > 0);
+  } catch {
+    return [];
+  }
+}
+
 export function PriceListView() {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [collapsedCategoryIds, setCollapsedCategoryIds] = useState<number[]>(() => readCollapsedCategoryIds());
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -38,6 +55,32 @@ export function PriceListView() {
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    if (categories.length === 0) {
+      return;
+    }
+
+    const validIds = new Set(categories.map((category) => category.id));
+    const next = collapsedCategoryIds.filter((id) => validIds.has(id));
+    if (next.length !== collapsedCategoryIds.length) {
+      setCollapsedCategoryIds(next);
+    }
+  }, [categories, collapsedCategoryIds, loading]);
+
+  useEffect(() => {
+    localStorage.setItem(collapsedCategoriesStorageKey, JSON.stringify(collapsedCategoryIds));
+  }, [collapsedCategoryIds]);
+
+  const handleToggleCategory = (categoryId: number) => {
+    setCollapsedCategoryIds((prev) =>
+      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId]
+    );
+  };
 
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
@@ -170,6 +213,8 @@ export function PriceListView() {
           renderItem={(category) => (
             <CategoryCard
               category={category}
+              isExpanded={!collapsedCategoryIds.includes(category.id)}
+              onToggleExpanded={() => handleToggleCategory(category.id)}
               onUpdateCategory={handleUpdateCategory}
               onDeleteCategory={handleDeleteCategory}
               onAddItem={handleAddItem}

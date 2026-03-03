@@ -3,11 +3,12 @@ package database
 import "time"
 
 type Customer struct {
-	ID      uint   `gorm:"primaryKey" json:"id"`
-	Name    string `gorm:"not null" json:"name"`
-	Address string `json:"address"`
-	Phone   string `json:"phone"`
-	Email   string `json:"email"`
+	ID       uint   `gorm:"primaryKey" json:"id"`
+	Name     string `gorm:"not null" json:"name"`
+	Address  string `json:"address"`
+	Phone    string `json:"phone"`
+	Email    string `json:"email"`
+	Archived bool   `gorm:"default:false;index" json:"archived"`
 }
 
 type Category struct {

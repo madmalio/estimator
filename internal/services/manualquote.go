@@ -4,6 +4,7 @@ import (
 	"cabinet-estimator/internal/database"
 	"cabinet-estimator/internal/types"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -25,6 +26,69 @@ func (s *ManualQuoteService) GetAll() ([]database.ManualQuote, error) {
 		Order("sort_order DESC, quote_date DESC").
 		Find(&quotes).Error
 	return quotes, err
+}
+
+func (s *ManualQuoteService) GetPage(req types.ManualQuotePageRequest) (*types.ManualQuotePageResponse, error) {
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+
+	pageSize := req.PageSize
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+
+	baseQuery := s.db.Model(&database.ManualQuote{}).
+		Joins("LEFT JOIN customers ON customers.id = manual_quotes.customer_id").
+		Where("customers.archived = ?", false)
+
+	search := strings.TrimSpace(req.Search)
+	if search != "" {
+		like := "%" + strings.ToLower(search) + "%"
+		baseQuery = baseQuery.Where(
+			"LOWER(manual_quotes.quote_number) LIKE ? OR LOWER(manual_quotes.job_name) LIKE ? OR LOWER(customers.name) LIKE ? OR strftime('%m/%d/%Y', manual_quotes.quote_date) LIKE ?",
+			like,
+			like,
+			like,
+			like,
+		)
+	}
+
+	var total int64
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	var quotes []database.ManualQuote
+	listQuery := s.db.Preload("Customer").
+		Joins("LEFT JOIN customers ON customers.id = manual_quotes.customer_id").
+		Where("customers.archived = ?", false)
+
+	if search != "" {
+		like := "%" + strings.ToLower(search) + "%"
+		listQuery = listQuery.Where(
+			"LOWER(manual_quotes.quote_number) LIKE ? OR LOWER(manual_quotes.job_name) LIKE ? OR LOWER(customers.name) LIKE ? OR strftime('%m/%d/%Y', manual_quotes.quote_date) LIKE ?",
+			like,
+			like,
+			like,
+			like,
+		)
+	}
+
+	if err := listQuery.Order("manual_quotes.sort_order DESC, manual_quotes.quote_date DESC").
+		Offset((page - 1) * pageSize).
+		Limit(pageSize).
+		Find(&quotes).Error; err != nil {
+		return nil, err
+	}
+
+	return &types.ManualQuotePageResponse{
+		Items:    quotes,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
 }
 
 func (s *ManualQuoteService) GetByID(id uint) (*database.ManualQuote, error) {
@@ -69,7 +133,7 @@ func (s *ManualQuoteService) Create(req types.CreateManualQuoteRequest) (*databa
 		return nil, err
 	}
 
-	quote.QuoteNumber = fmt.Sprintf("MQ-%04d", quote.ID)
+	quote.QuoteNumber = fmt.Sprintf("P-%04d", quote.ID)
 	if err := s.db.Save(&quote).Error; err != nil {
 		return nil, err
 	}

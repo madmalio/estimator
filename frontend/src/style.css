@@ -1,17 +1,48 @@
 @import "tailwindcss";
 
+:root,
+html.dark {
+  --app-zinc-50: #fafafa;
+  --app-zinc-100: #f4f4f5;
+  --app-zinc-200: #e4e4e7;
+  --app-zinc-300: #d4d4d8;
+  --app-zinc-400: #a1a1aa;
+  --app-zinc-500: #71717a;
+  --app-zinc-600: #52525b;
+  --app-zinc-700: #3f3f46;
+  --app-zinc-800: #27272a;
+  --app-zinc-900: #18181b;
+  --app-zinc-950: #09090c;
+  color-scheme: dark;
+}
+
+html.light {
+  --app-zinc-50: #09090c;
+  --app-zinc-100: #18181b;
+  --app-zinc-200: #27272a;
+  --app-zinc-300: #3f3f46;
+  --app-zinc-400: #52525b;
+  --app-zinc-500: #71717a;
+  --app-zinc-600: #a1a1aa;
+  --app-zinc-700: #d4d4d8;
+  --app-zinc-800: #e4e4e7;
+  --app-zinc-900: #f4f4f5;
+  --app-zinc-950: #fafafa;
+  color-scheme: light;
+}
+
 @theme {
-  --color-zinc-50: #fafafa;
-  --color-zinc-100: #f4f4f5;
-  --color-zinc-200: #e4e4e7;
-  --color-zinc-300: #d4d4d8;
-  --color-zinc-400: #a1a1aa;
-  --color-zinc-500: #71717a;
-  --color-zinc-600: #52525b;
-  --color-zinc-700: #3f3f46;
-  --color-zinc-800: #27272a;
-  --color-zinc-900: #18181b;
-  --color-zinc-950: #09090c;
+  --color-zinc-50: var(--app-zinc-50);
+  --color-zinc-100: var(--app-zinc-100);
+  --color-zinc-200: var(--app-zinc-200);
+  --color-zinc-300: var(--app-zinc-300);
+  --color-zinc-400: var(--app-zinc-400);
+  --color-zinc-500: var(--app-zinc-500);
+  --color-zinc-600: var(--app-zinc-600);
+  --color-zinc-700: var(--app-zinc-700);
+  --color-zinc-800: var(--app-zinc-800);
+  --color-zinc-900: var(--app-zinc-900);
+  --color-zinc-950: var(--app-zinc-950);
 }
 
 @source "../index.html";
@@ -21,12 +52,22 @@
   box-sizing: border-box;
 }
 
+*:not(.no-theme-transition),
+*:not(.no-theme-transition)::before,
+*:not(.no-theme-transition)::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
+}
+
 html {
-  background-color: #09090c;
+  background-color: var(--app-zinc-950);
 }
 
 body {
   margin: 0;
+  background-color: var(--app-zinc-950);
+  color: var(--app-zinc-100);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
     "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
     sans-serif;
@@ -70,8 +111,8 @@ input[type="number"] {
   html,
   body,
   #root {
-    background: #ffffff !important;
-    color: #000000 !important;
+    background: var(--app-zinc-950) !important;
+    color: var(--app-zinc-100) !important;
     height: auto;
   }
 
@@ -84,6 +125,8 @@ input[type="number"] {
   }
 
   * {
+    transition: none !important;
+    animation: none !important;
     box-shadow: none !important;
   }
 

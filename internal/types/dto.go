@@ -1,5 +1,7 @@
 package types
 
+import "cabinet-estimator/internal/database"
+
 // SortOrderUpdate is the DTO from frontend for reordering
 type SortOrderUpdate struct {
 	ID        uint `json:"id"`
@@ -8,10 +10,11 @@ type SortOrderUpdate struct {
 
 // CreateCustomerRequest is the DTO for creating a customer
 type CreateCustomerRequest struct {
-	Name    string `json:"name"`
-	Address string `json:"address"`
-	Phone   string `json:"phone"`
-	Email   string `json:"email"`
+	Name     string `json:"name"`
+	Address  string `json:"address"`
+	Phone    string `json:"phone"`
+	Email    string `json:"email"`
+	Archived bool   `json:"archived"`
 }
 
 // CreateCategoryRequest is the DTO for creating a category
@@ -129,4 +132,44 @@ type CreateTaxRateRequest struct {
 	Name      string  `json:"name"`
 	Rate      float64 `json:"rate"`
 	IsDefault bool    `json:"isDefault"`
+}
+
+type CustomerPageRequest struct {
+	Page         int    `json:"page"`
+	PageSize     int    `json:"pageSize"`
+	Search       string `json:"search"`
+	ShowArchived bool   `json:"showArchived"`
+}
+
+type EstimatePageRequest struct {
+	Page     int    `json:"page"`
+	PageSize int    `json:"pageSize"`
+	Search   string `json:"search"`
+}
+
+type ManualQuotePageRequest struct {
+	Page     int    `json:"page"`
+	PageSize int    `json:"pageSize"`
+	Search   string `json:"search"`
+}
+
+type CustomerPageResponse struct {
+	Items    []database.Customer `json:"items"`
+	Total    int64               `json:"total"`
+	Page     int                 `json:"page"`
+	PageSize int                 `json:"pageSize"`
+}
+
+type EstimatePageResponse struct {
+	Items    []database.EstimateJob `json:"items"`
+	Total    int64                  `json:"total"`
+	Page     int                    `json:"page"`
+	PageSize int                    `json:"pageSize"`
+}
+
+type ManualQuotePageResponse struct {
+	Items    []database.ManualQuote `json:"items"`
+	Total    int64                  `json:"total"`
+	Page     int                    `json:"page"`
+	PageSize int                    `json:"pageSize"`
 }

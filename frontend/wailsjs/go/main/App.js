@@ -58,8 +58,12 @@ export function DeleteTaxRate(arg1) {
   return window['go']['main']['App']['DeleteTaxRate'](arg1);
 }
 
-export function GenerateEstimatePDF(arg1) {
-  return window['go']['main']['App']['GenerateEstimatePDF'](arg1);
+export function GenerateEstimatePDF(arg1, arg2) {
+  return window['go']['main']['App']['GenerateEstimatePDF'](arg1, arg2);
+}
+
+export function GenerateProposalPDF(arg1, arg2) {
+  return window['go']['main']['App']['GenerateProposalPDF'](arg1, arg2);
 }
 
 export function GetAllCategories() {
@@ -102,6 +106,10 @@ export function GetCustomer(arg1) {
   return window['go']['main']['App']['GetCustomer'](arg1);
 }
 
+export function GetCustomersPage(arg1) {
+  return window['go']['main']['App']['GetCustomersPage'](arg1);
+}
+
 export function GetEstimate(arg1) {
   return window['go']['main']['App']['GetEstimate'](arg1);
 }
@@ -110,8 +118,16 @@ export function GetEstimatesByCustomer(arg1) {
   return window['go']['main']['App']['GetEstimatesByCustomer'](arg1);
 }
 
+export function GetEstimatesPage(arg1) {
+  return window['go']['main']['App']['GetEstimatesPage'](arg1);
+}
+
 export function GetManualQuote(arg1) {
   return window['go']['main']['App']['GetManualQuote'](arg1);
+}
+
+export function GetManualQuotesPage(arg1) {
+  return window['go']['main']['App']['GetManualQuotesPage'](arg1);
 }
 
 export function GetPriceListItem(arg1) {

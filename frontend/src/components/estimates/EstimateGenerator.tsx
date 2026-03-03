@@ -3,49 +3,64 @@ import { Plus, Printer, Save, ChevronLeft, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
+import { CustomerCombobox } from '../ui/CustomerCombobox';
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Modal } from '../ui/Modal';
 import { useToast } from '../ui/Toast';
 import { LineItemTable } from './LineItemTable';
 import { TotalsCard } from './TotalsCard';
 import { formatCurrency, formatDate } from '../../lib/utils';
+import { buildPrintDocumentHtml } from '../../lib/printHtml';
 import type {
   Customer,
   Category,
   EstimateJob,
-  CompanySettings,
   SortOrderUpdate,
   CreateLineItemRequest,
-  TaxRate,
 } from '../../types';
 import {
   GetAllCustomers,
   GetAllCategoriesWithItems,
-  GetAllEstimates,
+  GetEstimatesPage,
   GetEstimate,
   CreateEstimate,
   UpdateEstimate,
   DeleteEstimate,
   AddLineItem,
   DeleteLineItem,
+  UpdateLineItem,
   UpdateLineItemSortOrder,
-  GetCompanySettings,
-  GetAllTaxRates,
+  GenerateEstimatePDF,
+  OpenFileInDefaultApp,
 } from '../../../wailsjs/go/main/App';
 
 type ViewMode = 'list' | 'edit';
 
-export function EstimateGenerator() {
+interface QuickCreateForCustomer {
+  customerId: number;
+  customerName: string;
+  token: number;
+}
+
+interface EstimateGeneratorProps {
+  quickCreateForCustomer?: QuickCreateForCustomer | null;
+  onQuickCreateHandled?: () => void;
+}
+
+export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled }: EstimateGeneratorProps) {
+  const [pageSize, setPageSize] = useState(10);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [estimates, setEstimates] = useState<EstimateJob[]>([]);
-  const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
-  const [selectedTaxRateId, setSelectedTaxRateId] = useState<string>('');
+  const [totalEstimates, setTotalEstimates] = useState(0);
   const [currentEstimate, setCurrentEstimate] = useState<EstimateJob | null>(null);
-  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [estimateToDelete, setEstimateToDelete] = useState<EstimateJob | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastHandledQuickCreateToken, setLastHandledQuickCreateToken] = useState<number | null>(null);
+  const [isCreatingCustomCabinet, setIsCreatingCustomCabinet] = useState(false);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
 
@@ -69,40 +84,52 @@ export function EstimateGenerator() {
   const [installRate, setInstallRate] = useState(0);
   const [miscCharge, setMiscCharge] = useState(0);
 
-  const fetchData = async () => {
+  const fetchStaticData = async () => {
     try {
-      const [customersData, categoriesData, estimatesData, companySettingsData, taxRatesData] = await Promise.all([
+      const [customersData, categoriesData] = await Promise.all([
         GetAllCustomers(),
         GetAllCategoriesWithItems(),
-        GetAllEstimates(),
-        GetCompanySettings(),
-        GetAllTaxRates(),
       ]);
       setCustomers(customersData || []);
       setCategories(categoriesData || []);
-      setEstimates(estimatesData || []);
-      setCompanySettings(companySettingsData || null);
-      setTaxRates(taxRatesData || []);
-
-      const defaultRate = (taxRatesData || []).find(r => r.isDefault);
-      if (defaultRate && !selectedTaxRateId) {
-        setSelectedTaxRateId(defaultRate.id.toString());
-      }
     } catch (error) {
       console.error('Failed to fetch data:', error);
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const fetchEstimatesPage = async (page = currentPage, search = searchTerm, size = pageSize) => {
+    try {
+      const response = await GetEstimatesPage({ page, pageSize: size, search });
+      setEstimates(response?.items || []);
+      setTotalEstimates(response?.total || 0);
+    } catch (error) {
+      console.error('Failed to fetch estimates:', error);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    const load = async () => {
+      await fetchStaticData();
+      await fetchEstimatesPage();
+      setLoading(false);
+    };
+    void load();
   }, []);
+
+  useEffect(() => {
+    if (loading || viewMode !== 'list') {
+      return;
+    }
+    void fetchEstimatesPage();
+  }, [currentPage, searchTerm, viewMode, pageSize]);
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
   const categoryItems = selectedCategory?.items || [];
-  const activeCustomer =
-    currentEstimate?.customer || customers.find((c) => c.id === selectedCustomerId) || null;
+  const activeCustomers = useMemo(
+    () => customers.filter((customer) => !customer.archived),
+    [customers]
+  );
+  const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId) || null;
 
   const subtotal = useMemo(() => {
     return (currentEstimate?.lineItems || []).reduce(
@@ -112,18 +139,29 @@ export function EstimateGenerator() {
   }, [currentEstimate?.lineItems]);
 
   const installTotal = installQty * installRate;
-  const markupAmount = subtotal * (markupPercent / 100);
-  
-  const selectedTaxRate = taxRates.find(r => r.id.toString() === selectedTaxRateId);
-  const taxAmount = selectedTaxRate ? (subtotal + markupAmount + installTotal + miscCharge) * (selectedTaxRate.rate / 100) : 0;
-  
-  const grandTotal = subtotal + markupAmount + installTotal + miscCharge + taxAmount;
+  const markupAmountRaw = subtotal * (markupPercent / 100);
+  const markupAmount = markupAmountRaw > 0 ? Math.ceil(markupAmountRaw / 5) * 5 : 0;
+  const grandTotalRaw = subtotal + markupAmount + installTotal + miscCharge;
+  const grandTotal = grandTotalRaw > 0 ? Math.ceil(grandTotalRaw / 5) * 5 : 0;
+
+  const totalPages = Math.max(1, Math.ceil(totalEstimates / pageSize));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, pageSize]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const loadEstimate = async (jobId: number) => {
     try {
       const estimate = await GetEstimate(jobId);
       if (estimate) {
         setCurrentEstimate(estimate);
+        setIsCreatingCustomCabinet(false);
         setSelectedCustomerId(estimate.customerId);
         setJobName(estimate.jobName);
         setMarkupPercent(estimate.markupPercent);
@@ -142,23 +180,25 @@ export function EstimateGenerator() {
     }
   };
 
-  const handleCreateEstimate = async () => {
-    if (!selectedCustomerId || !jobName.trim()) {
-      showToast('Please select a customer and enter a job name', 'error');
-      return;
-    }
+  const handleCreateDraftEstimate = async (customerIdOverride?: number, jobNameOverride?: string) => {
+    const targetCustomerId = customerIdOverride ?? 0;
+    const targetJobName = (jobNameOverride ?? 'New Custom Cabinet').trim() || 'New Custom Cabinet';
 
     try {
+      setSelectedCustomerId(targetCustomerId);
+      setJobName(targetJobName);
+
       const estimate = await CreateEstimate({
-        customerId: selectedCustomerId,
-        jobName: jobName.trim(),
+        customerId: targetCustomerId,
+        jobName: targetJobName,
         markupPercent: 0,
         miscCharge: 0,
       });
       if (estimate) {
         setCurrentEstimate(estimate);
+        setIsCreatingCustomCabinet(true);
         setViewMode('edit');
-        await fetchData();
+        await fetchEstimatesPage();
         showToast('Estimate created', 'success');
       }
     } catch (error) {
@@ -166,6 +206,20 @@ export function EstimateGenerator() {
       showToast('Failed to create estimate', 'error');
     }
   };
+
+  useEffect(() => {
+    if (!quickCreateForCustomer || loading) {
+      return;
+    }
+
+    if (quickCreateForCustomer.token === lastHandledQuickCreateToken) {
+      return;
+    }
+
+    setLastHandledQuickCreateToken(quickCreateForCustomer.token);
+    void handleCreateDraftEstimate(quickCreateForCustomer.customerId, 'New Custom Cabinet');
+    onQuickCreateHandled?.();
+  }, [quickCreateForCustomer, loading, lastHandledQuickCreateToken, onQuickCreateHandled]);
 
   const handleSaveEstimate = async (showSuccessMessage = true) => {
     if (!currentEstimate) return;
@@ -183,7 +237,8 @@ export function EstimateGenerator() {
       if (updatedEstimate) {
         setCurrentEstimate(updatedEstimate);
       }
-      await fetchData();
+      setIsCreatingCustomCabinet(false);
+      await fetchEstimatesPage();
       if (showSuccessMessage) {
         showToast('Estimate saved', 'success');
       }
@@ -200,9 +255,10 @@ export function EstimateGenerator() {
       await DeleteEstimate(estimateToDelete.jobId);
       if (currentEstimate?.jobId === estimateToDelete.jobId) {
         setCurrentEstimate(null);
+        setIsCreatingCustomCabinet(false);
         setViewMode('list');
       }
-      await fetchData();
+      await fetchEstimatesPage();
       showToast('Estimate deleted', 'success');
     } catch (error) {
       console.error('Failed to delete estimate:', error);
@@ -291,6 +347,31 @@ export function EstimateGenerator() {
     }
   };
 
+  const handleUpdateLineItem = async (
+    id: number,
+    itemName: string,
+    quantity: number,
+    unitPrice: number,
+    categoryName: string
+  ) => {
+    if (!currentEstimate) return;
+
+    try {
+      await UpdateLineItem({
+        id,
+        itemName,
+        categoryName,
+        quantity,
+        unitPrice,
+      });
+      const updated = await GetEstimate(currentEstimate.jobId);
+      setCurrentEstimate(updated);
+    } catch (error) {
+      console.error('Failed to update line item:', error);
+      showToast('Failed to update line item', 'error');
+    }
+  };
+
   const handleReorderLineItems = async (updates: SortOrderUpdate[]) => {
     if (!currentEstimate) return;
 
@@ -313,8 +394,55 @@ export function EstimateGenerator() {
     window.print();
   };
 
+  const handleSaveEstimatePDF = async () => {
+    if (!currentEstimate) return;
+
+    await handleSaveEstimate(false);
+
+    try {
+      const printHtml = buildPrintDocumentHtml();
+      const filePath = await GenerateEstimatePDF(currentEstimate.jobId, printHtml);
+      showToast('PDF saved successfully', 'success');
+      await OpenFileInDefaultApp(filePath);
+    } catch (error) {
+      console.error('Failed to save estimate PDF:', error);
+      showToast('Failed to save PDF', 'error');
+    }
+  };
+
+  const handleQuickPrintEstimate = async (jobId: number) => {
+    await loadEstimate(jobId);
+
+    setTimeout(() => {
+      const handleAfterPrint = () => {
+        window.removeEventListener('afterprint', handleAfterPrint);
+        resetForm();
+        setViewMode('list');
+      };
+
+      window.addEventListener('afterprint', handleAfterPrint);
+      window.print();
+    }, 60);
+  };
+
+  const handleCancelNewCustomCabinet = async () => {
+    if (!currentEstimate || !isCreatingCustomCabinet) return;
+
+    try {
+      await DeleteEstimate(currentEstimate.jobId);
+      resetForm();
+      setViewMode('list');
+      await fetchEstimatesPage();
+      showToast('Custom cabinet cancelled', 'success');
+    } catch (error) {
+      console.error('Failed to cancel custom cabinet:', error);
+      showToast('Failed to cancel custom cabinet', 'error');
+    }
+  };
+
   const resetForm = () => {
     setCurrentEstimate(null);
+    setIsCreatingCustomCabinet(false);
     setSelectedCustomerId(0);
     setJobName('');
     setMarkupPercent(0);
@@ -327,7 +455,6 @@ export function EstimateGenerator() {
     setWriteInName('');
     setWriteInQty('1');
     setWriteInPrice('');
-    setSelectedTaxRateId('');
   };
 
   if (loading) {
@@ -343,23 +470,26 @@ export function EstimateGenerator() {
     return (
       <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-zinc-100">Estimates</h2>
-        <Button
-          onClick={() => {
-            resetForm();
-            setViewMode('edit');
-          }}
-        >
+        <h2 className="text-2xl font-bold text-zinc-100">Custom Cabinets</h2>
+        <Button onClick={() => void handleCreateDraftEstimate()}>
           <Plus size={16} className="mr-2" />
-          New Estimate
+          New Custom Cabinet
         </Button>
       </div>
 
-        {estimates.length === 0 ? (
+      <Input
+        placeholder="Search custom cabinets by job, customer, or date"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+      />
+
+        {totalEstimates === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-zinc-400">
-                No estimates yet. Create your first estimate to get started.
+                {searchTerm.trim()
+                  ? 'No custom cabinets match your search.'
+                  : 'No estimates yet. Create your first estimate to get started.'}
               </p>
             </CardContent>
           </Card>
@@ -411,6 +541,16 @@ export function EstimateGenerator() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
+                            void handleQuickPrintEstimate(estimate.jobId);
+                          }}
+                        >
+                          <Printer size={14} className="text-zinc-400" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             openDeleteEstimateModal(estimate);
                           }}
                         >
@@ -421,6 +561,44 @@ export function EstimateGenerator() {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="flex items-center justify-between border-t border-zinc-800 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-zinc-400">Rows</label>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(parseInt(e.target.value, 10) || 10)}
+                  className="px-2 py-1 text-xs border border-zinc-600 rounded bg-zinc-800 text-zinc-100"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+                <p className="text-xs text-zinc-400">
+                  Showing {totalEstimates === 0 ? 0 : (currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalEstimates)} of {totalEstimates}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <p className="text-xs text-zinc-400">
+                  Page {currentPage} of {totalPages}
+                </p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           </Card>
         )}
@@ -464,75 +642,46 @@ export function EstimateGenerator() {
       {currentEstimate && (
         <section className="print-only">
           <div className="max-w-[850px] mx-auto p-10 text-black bg-white">
-            <div className="flex items-start justify-between mb-8">
+            <div className="flex items-start justify-between mb-6">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">
-                  {companySettings?.companyName || 'Cabinet Estimator'}
-                </h1>
-                {companySettings?.addressLine1 && (
-                  <p className="text-sm mt-1">{companySettings.addressLine1}</p>
-                )}
-                {companySettings?.addressLine2 && (
-                  <p className="text-sm">{companySettings.addressLine2}</p>
-                )}
-                {(companySettings?.phone || companySettings?.email) && (
-                  <p className="text-sm">
-                    {companySettings?.phone || ''}
-                    {companySettings?.phone && companySettings?.email ? ' | ' : ''}
-                    {companySettings?.email || ''}
-                  </p>
-                )}
+                <p className="text-[22px] font-bold leading-tight">
+                  {currentEstimate.customer?.name || selectedCustomer?.name || '-'}
+                  <span className="text-[14px] font-normal"> - {jobName || currentEstimate.jobName || '-'}</span>
+                </p>
+                <p className="text-sm mt-1">{formatDate(currentEstimate.estimateDate)}</p>
               </div>
-              <div className="text-right">
-                <h2 className="text-2xl font-semibold">ESTIMATE</h2>
-                <p className="text-sm mt-2">Estimate #: {currentEstimate.jobId}</p>
-                <p className="text-sm">Date: {formatDate(currentEstimate.estimateDate)}</p>
-              </div>
+              <h1 className="text-2xl font-semibold tracking-tight text-right">Custom Cabinets</h1>
             </div>
 
-            <div className="grid grid-cols-2 gap-8 mb-8">
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide mb-2">Customer</h3>
-                <p className="text-sm font-medium">{activeCustomer?.name || '-'}</p>
-                <p className="text-sm">{activeCustomer?.address || ''}</p>
-                <p className="text-sm">{activeCustomer?.phone || ''}</p>
-                <p className="text-sm">{activeCustomer?.email || ''}</p>
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide mb-2">Project</h3>
-                <p className="text-sm font-medium">{jobName || currentEstimate.jobName}</p>
-              </div>
-            </div>
-
-            <table className="w-full border border-black border-collapse mb-6">
+            <table className="w-full mb-6">
               <thead>
-                <tr>
-                  <th className="text-left text-sm font-semibold border border-black px-3 py-2">
+                <tr className="border-b border-black">
+                  <th className="text-left text-sm font-semibold px-3 py-2">
                     Description
                   </th>
-                  <th className="text-right text-sm font-semibold border border-black px-3 py-2 w-24">
+                  <th className="text-right text-sm font-semibold px-3 py-2 w-24">
                     Qty
                   </th>
-                  <th className="text-right text-sm font-semibold border border-black px-3 py-2 w-32">
+                  <th className="text-right text-sm font-semibold px-3 py-2 w-32">
                     Unit Price
                   </th>
-                  <th className="text-right text-sm font-semibold border border-black px-3 py-2 w-32">
+                  <th className="text-right text-sm font-semibold px-3 py-2 w-32">
                     Total
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {(currentEstimate.lineItems || []).map((item) => (
-                  <tr key={item.id}>
-                    <td className="text-sm border border-black px-3 py-2">
+                  <tr key={item.id} className="border-b border-black/30">
+                    <td className="text-sm px-3 py-2">
                       {item.categoryName ? `${item.categoryName} - ` : ''}
                       {item.itemName}
                     </td>
-                    <td className="text-sm text-right border border-black px-3 py-2">{item.quantity}</td>
-                    <td className="text-sm text-right border border-black px-3 py-2">
+                    <td className="text-sm text-right px-3 py-2">{item.quantity}</td>
+                    <td className="text-sm text-right px-3 py-2">
                       {formatCurrency(item.unitPrice)}
                     </td>
-                    <td className="text-sm text-right border border-black px-3 py-2">
+                    <td className="text-sm text-right px-3 py-2">
                       {formatCurrency(item.lineTotal)}
                     </td>
                   </tr>
@@ -547,7 +696,7 @@ export function EstimateGenerator() {
               </div>
               {markupPercent > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span>Markup ({markupPercent.toFixed(2)}%)</span>
+                  <span>Markup ({markupPercent}%)</span>
                   <span>{formatCurrency(markupAmount)}</span>
                 </div>
               )}
@@ -563,19 +712,12 @@ export function EstimateGenerator() {
                   <span>{formatCurrency(miscCharge)}</span>
                 </div>
               )}
-              {taxAmount > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span>Tax ({selectedTaxRate?.name})</span>
-                  <span>{formatCurrency(taxAmount)}</span>
-                </div>
-              )}
               <div className="flex justify-between text-base font-bold pt-2 border-t border-black">
                 <span>Total</span>
                 <span>{formatCurrency(grandTotal)}</span>
               </div>
             </div>
 
-            <p className="text-xs mt-10">This estimate is valid for 30 days from the date listed above.</p>
           </div>
         </section>
       )}
@@ -600,9 +742,17 @@ export function EstimateGenerator() {
           </div>
           {currentEstimate && (
             <div className="flex gap-2 no-print">
+              {isCreatingCustomCabinet && (
+                <Button variant="ghost" onClick={() => void handleCancelNewCustomCabinet()}>
+                  Cancel
+                </Button>
+              )}
               <Button variant="secondary" onClick={() => void handleSaveEstimate()}>
                 <Save size={16} className="mr-2" />
                 Save
+              </Button>
+              <Button variant="secondary" onClick={() => void handleSaveEstimatePDF()}>
+                Save PDF
               </Button>
               <Button onClick={handlePrintEstimate}>
                 <Printer size={16} className="mr-2" />
@@ -617,15 +767,12 @@ export function EstimateGenerator() {
             <Card>
               <CardContent className="p-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <Select
+                  <CustomerCombobox
                     label="Customer"
-                    value={selectedCustomerId.toString()}
-                    onChange={(value) => setSelectedCustomerId(parseInt(value) || 0)}
-                    options={customers.map((c) => ({
-                      value: c.id,
-                      label: c.name,
-                    }))}
-                    placeholder="Select customer..."
+                    customers={activeCustomers}
+                    value={selectedCustomerId}
+                    onChange={setSelectedCustomerId}
+                    placeholder="Search customer..."
                   />
                   <Input
                     label="Job Name"
@@ -634,11 +781,6 @@ export function EstimateGenerator() {
                     placeholder="e.g., Kitchen Remodel"
                   />
                 </div>
-                {!currentEstimate && (
-                  <div className="mt-4">
-                    <Button onClick={handleCreateEstimate}>Create Estimate</Button>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
@@ -740,7 +882,9 @@ export function EstimateGenerator() {
                 <h3 className="font-semibold text-zinc-100 mb-2">Line Items</h3>
                 <LineItemTable
                   lineItems={currentEstimate.lineItems || []}
+                  categories={categories}
                   onDeleteItem={handleDeleteLineItem}
+                  onUpdateItem={handleUpdateLineItem}
                   onReorderItems={handleReorderLineItems}
                 />
               </div>
@@ -749,20 +893,17 @@ export function EstimateGenerator() {
         </div>
 
           {currentEstimate && (
-            <div>
+            <div className="self-start sticky top-6 max-h-[calc(100vh-6rem)] overflow-y-auto">
               <TotalsCard
                 subtotal={subtotal}
                 markupPercent={markupPercent}
                 installQty={installQty}
                 installRate={installRate}
                 miscCharge={miscCharge}
-                taxRateId={selectedTaxRateId}
-                taxRates={taxRates}
                 onMarkupChange={setMarkupPercent}
                 onInstallQtyChange={setInstallQty}
                 onInstallRateChange={setInstallRate}
                 onMiscChargeChange={setMiscCharge}
-                onTaxRateChange={setSelectedTaxRateId}
               />
             </div>
           )}
