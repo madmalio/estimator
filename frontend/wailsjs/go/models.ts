@@ -149,6 +149,8 @@ export namespace database {
 	    estimateDate: any;
 	    totalAmount: number;
 	    installTotal: number;
+	    installQty: number;
+	    installRate: number;
 	    markupPercent: number;
 	    miscCharge: number;
 	    sortOrder: number;
@@ -167,6 +169,8 @@ export namespace database {
 	        this.estimateDate = this.convertValues(source["estimateDate"], null);
 	        this.totalAmount = source["totalAmount"];
 	        this.installTotal = source["installTotal"];
+	        this.installQty = source["installQty"];
+	        this.installRate = source["installRate"];
 	        this.markupPercent = source["markupPercent"];
 	        this.miscCharge = source["miscCharge"];
 	        this.sortOrder = source["sortOrder"];
@@ -373,6 +377,8 @@ export namespace types {
 	export class CreateEstimateJobRequest {
 	    customerId: number;
 	    jobName: string;
+	    installQty: number;
+	    installRate: number;
 	    markupPercent: number;
 	    miscCharge: number;
 	
@@ -384,6 +390,8 @@ export namespace types {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.customerId = source["customerId"];
 	        this.jobName = source["jobName"];
+	        this.installQty = source["installQty"];
+	        this.installRate = source["installRate"];
 	        this.markupPercent = source["markupPercent"];
 	        this.miscCharge = source["miscCharge"];
 	    }
@@ -729,6 +737,8 @@ export namespace types {
 	    jobName: string;
 	    totalAmount: number;
 	    installTotal: number;
+	    installQty: number;
+	    installRate: number;
 	    markupPercent: number;
 	    miscCharge: number;
 	
@@ -743,6 +753,8 @@ export namespace types {
 	        this.jobName = source["jobName"];
 	        this.totalAmount = source["totalAmount"];
 	        this.installTotal = source["installTotal"];
+	        this.installQty = source["installQty"];
+	        this.installRate = source["installRate"];
 	        this.markupPercent = source["markupPercent"];
 	        this.miscCharge = source["miscCharge"];
 	    }

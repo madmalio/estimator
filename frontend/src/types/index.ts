@@ -30,6 +30,8 @@ export interface EstimateJob {
   estimateDate: string;
   totalAmount: number;
   installTotal: number;
+  installQty: number;
+  installRate: number;
   markupPercent: number;
   miscCharge: number;
   sortOrder: number;
@@ -80,6 +82,8 @@ export interface CreatePriceListItemRequest {
 export interface CreateEstimateJobRequest {
   customerId: number;
   jobName: string;
+  installQty: number;
+  installRate: number;
   markupPercent: number;
   miscCharge: number;
 }
@@ -98,6 +102,8 @@ export interface UpdateEstimateJobRequest {
   jobName: string;
   totalAmount: number;
   installTotal: number;
+  installQty: number;
+  installRate: number;
   markupPercent: number;
   miscCharge: number;
 }

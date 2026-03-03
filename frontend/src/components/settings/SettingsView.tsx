@@ -638,6 +638,8 @@ export function SettingsView() {
         const createdEstimate = await CreateEstimate({
           customerId: mappedCustomerId,
           jobName: estimate.jobName,
+          installQty: estimate.installQty || 0,
+          installRate: estimate.installRate || 0,
           markupPercent: estimate.markupPercent,
           miscCharge: estimate.miscCharge,
         });
@@ -658,6 +660,8 @@ export function SettingsView() {
           jobName: estimate.jobName,
           totalAmount: estimate.totalAmount,
           installTotal: estimate.installTotal,
+          installQty: estimate.installQty || 0,
+          installRate: estimate.installRate || 0,
           markupPercent: estimate.markupPercent,
           miscCharge: estimate.miscCharge,
         });

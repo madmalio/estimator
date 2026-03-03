@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { formatCurrency } from '../../lib/utils';
@@ -26,6 +26,23 @@ export function TotalsCard({
   onInstallRateChange,
   onMiscChargeChange,
 }: TotalsCardProps) {
+  const [installRateInput, setInstallRateInput] = useState('');
+  const [miscChargeInput, setMiscChargeInput] = useState('');
+  const [isEditingInstallRate, setIsEditingInstallRate] = useState(false);
+  const [isEditingMiscCharge, setIsEditingMiscCharge] = useState(false);
+
+  useEffect(() => {
+    if (!isEditingInstallRate) {
+      setInstallRateInput(installRate === 0 ? '' : installRate.toFixed(2));
+    }
+  }, [installRate, isEditingInstallRate]);
+
+  useEffect(() => {
+    if (!isEditingMiscCharge) {
+      setMiscChargeInput(miscCharge === 0 ? '' : miscCharge.toFixed(2));
+    }
+  }, [miscCharge, isEditingMiscCharge]);
+
   const markupAmountRaw = subtotal * (markupPercent / 100);
   const markupAmount = markupAmountRaw > 0 ? Math.ceil(markupAmountRaw / 5) * 5 : 0;
   const installTotal = installQty * installRate;
@@ -83,8 +100,23 @@ export function TotalsCard({
               type="number"
               step="0.01"
               min="0"
-              value={installRate === 0 ? '' : installRate.toFixed(2)}
-              onChange={(e) => onInstallRateChange(parseFloat(e.target.value) || 0)}
+              value={installRateInput}
+              onFocus={() => setIsEditingInstallRate(true)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setInstallRateInput(next);
+                const parsed = parseFloat(next);
+                if (!Number.isNaN(parsed)) {
+                  onInstallRateChange(parsed);
+                }
+              }}
+              onBlur={() => {
+                setIsEditingInstallRate(false);
+                const parsed = parseFloat(installRateInput);
+                const normalized = Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
+                onInstallRateChange(normalized);
+                setInstallRateInput(normalized === 0 ? '' : normalized.toFixed(2));
+              }}
               placeholder="Rate"
               className="text-right"
             />
@@ -103,8 +135,23 @@ export function TotalsCard({
                 type="number"
                 step="0.01"
                 min="0"
-                value={miscCharge === 0 ? '' : miscCharge.toFixed(2)}
-                onChange={(e) => onMiscChargeChange(parseFloat(e.target.value) || 0)}
+                value={miscChargeInput}
+                onFocus={() => setIsEditingMiscCharge(true)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setMiscChargeInput(next);
+                  const parsed = parseFloat(next);
+                  if (!Number.isNaN(parsed)) {
+                    onMiscChargeChange(parsed);
+                  }
+                }}
+                onBlur={() => {
+                  setIsEditingMiscCharge(false);
+                  const parsed = parseFloat(miscChargeInput);
+                  const normalized = Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
+                  onMiscChargeChange(normalized);
+                  setMiscChargeInput(normalized === 0 ? '' : normalized.toFixed(2));
+                }}
                 className="text-right"
               />
             </div>

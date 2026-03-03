@@ -129,6 +129,9 @@ func (s *EstimateService) Create(req types.CreateEstimateJobRequest) (*database.
 		CustomerID:    req.CustomerID,
 		JobName:       req.JobName,
 		EstimateDate:  time.Now(),
+		InstallQty:    req.InstallQty,
+		InstallRate:   req.InstallRate,
+		InstallTotal:  req.InstallQty * req.InstallRate,
 		MarkupPercent: req.MarkupPercent,
 		MiscCharge:    req.MiscCharge,
 		SortOrder:     maxSortOrder + 1,
@@ -152,6 +155,8 @@ func (s *EstimateService) Update(req types.UpdateEstimateJobRequest) (*database.
 	job.JobName = req.JobName
 	job.TotalAmount = req.TotalAmount
 	job.InstallTotal = req.InstallTotal
+	job.InstallQty = req.InstallQty
+	job.InstallRate = req.InstallRate
 	job.MarkupPercent = req.MarkupPercent
 	job.MiscCharge = req.MiscCharge
 

@@ -29,10 +29,40 @@ export function buildPrintDocumentHtml(printSectionSelector = '.print-only'): st
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>${styles}</style>
+    <style>
+      ${styles}
+
+      @page {
+        size: Letter;
+        margin: 0 !important;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #ffffff !important;
+      }
+
+      .pdf-page-wrapper {
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 11in;
+        padding: 0.35in;
+        background: #ffffff;
+      }
+
+      @media print {
+        html,
+        body,
+        .pdf-page-wrapper {
+          background: #ffffff !important;
+        }
+      }
+    </style>
   </head>
   <body>
-    ${section.outerHTML}
+    <div class="pdf-page-wrapper">${section.outerHTML}</div>
   </body>
 </html>`;
 }

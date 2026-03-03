@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { DraggableAttributes } from '@dnd-kit/core';
 import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
-import { Plus, ChevronLeft, Trash2, Save, Printer } from 'lucide-react';
+import { Plus, ChevronLeft, Trash2, Save, Printer, FileText } from 'lucide-react';
 import { SortableList } from '../dnd/SortableList';
 import { DragHandle } from '../dnd/DragHandle';
 import { Button } from '../ui/Button';
@@ -548,7 +548,7 @@ export function ProposalsView({ quickCreateForCustomer, onQuickCreateHandled }: 
       await OpenFileInDefaultApp(filePath);
     } catch (error) {
       console.error('Failed to save proposal PDF:', error);
-      showToast('Failed to save PDF', 'error');
+      showToast(`Failed to save PDF: ${error instanceof Error ? error.message : String(error)}`, 'error');
     }
   };
 
@@ -793,6 +793,12 @@ export function ProposalsView({ quickCreateForCustomer, onQuickCreateHandled }: 
     } catch (error) {
       console.error('Failed to cancel proposal:', error);
       showToast('Failed to cancel proposal', 'error');
+    }
+  };
+
+  const preventNumberArrowAdjust = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault();
     }
   };
 
@@ -1162,6 +1168,7 @@ export function ProposalsView({ quickCreateForCustomer, onQuickCreateHandled }: 
               Save Quote
             </Button>
             <Button variant="secondary" onClick={() => void handleSaveProposalPDF()}>
+              <FileText size={16} className="mr-2" />
               Save PDF
             </Button>
             <Button onClick={handlePrintQuote}>
@@ -1373,6 +1380,7 @@ export function ProposalsView({ quickCreateForCustomer, onQuickCreateHandled }: 
                   type="number"
                   step="0.01"
                   value={form.subtotal === 0 ? '' : form.subtotal.toFixed(2)}
+                  onKeyDown={preventNumberArrowAdjust}
                   readOnly
                 />
                 <Select
@@ -1390,6 +1398,7 @@ export function ProposalsView({ quickCreateForCustomer, onQuickCreateHandled }: 
                   type="number"
                   step="0.01"
                   value={form.tax === 0 ? '' : form.tax.toFixed(2)}
+                  onKeyDown={preventNumberArrowAdjust}
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, tax: parseFloat(e.target.value) || 0 }))
                   }
@@ -1399,6 +1408,7 @@ export function ProposalsView({ quickCreateForCustomer, onQuickCreateHandled }: 
                   type="number"
                   step="0.01"
                   value={form.total === 0 ? '' : form.total.toFixed(2)}
+                  onKeyDown={preventNumberArrowAdjust}
                   readOnly
                 />
                 <Input
@@ -1412,6 +1422,7 @@ export function ProposalsView({ quickCreateForCustomer, onQuickCreateHandled }: 
                   type="number"
                   step="1"
                   value={form.depositPercent === 0 ? '' : form.depositPercent.toFixed(0)}
+                  onKeyDown={preventNumberArrowAdjust}
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, depositPercent: Math.round(parseFloat(e.target.value)) || 0 }))
                   }
@@ -1421,6 +1432,7 @@ export function ProposalsView({ quickCreateForCustomer, onQuickCreateHandled }: 
                   type="number"
                   step="0.01"
                   value={form.depositAmount === 0 ? '' : form.depositAmount.toFixed(2)}
+                  onKeyDown={preventNumberArrowAdjust}
                   readOnly
                 />
                 <Input
@@ -1428,6 +1440,7 @@ export function ProposalsView({ quickCreateForCustomer, onQuickCreateHandled }: 
                   type="number"
                   step="0.01"
                   value={form.amountDue === 0 ? '' : form.amountDue.toFixed(2)}
+                  onKeyDown={preventNumberArrowAdjust}
                   readOnly
                 />
               </CardContent>

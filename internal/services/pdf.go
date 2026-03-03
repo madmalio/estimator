@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -76,6 +77,8 @@ func (s *PDFService) resolveChromiumPath() (string, error) {
 			filepath.Join(exeDir, "chromium", "chrome.exe"),
 			filepath.Join(exeDir, "resources", "chromium", "chrome.exe"),
 			filepath.Join(exeDir, "chrome-win", "chrome.exe"),
+			filepath.Join(exeDir, "chromium", "msedge.exe"),
+			filepath.Join(exeDir, "resources", "chromium", "msedge.exe"),
 		}
 		for _, candidate := range candidates {
 			if _, statErr := os.Stat(candidate); statErr == nil {
@@ -84,7 +87,29 @@ func (s *PDFService) resolveChromiumPath() (string, error) {
 		}
 	}
 
-	return "", errors.New("bundled chromium not found; set CABCON_CHROMIUM_PATH or include chromium/chrome.exe with the app")
+	globalCandidates := []string{
+		filepath.Join(os.Getenv("ProgramFiles"), "Google", "Chrome", "Application", "chrome.exe"),
+		filepath.Join(os.Getenv("ProgramFiles(x86)"), "Google", "Chrome", "Application", "chrome.exe"),
+		filepath.Join(os.Getenv("ProgramFiles"), "Microsoft", "Edge", "Application", "msedge.exe"),
+		filepath.Join(os.Getenv("ProgramFiles(x86)"), "Microsoft", "Edge", "Application", "msedge.exe"),
+	}
+	for _, candidate := range globalCandidates {
+		if candidate == "" {
+			continue
+		}
+		if _, statErr := os.Stat(candidate); statErr == nil {
+			return candidate, nil
+		}
+	}
+
+	if path, lookErr := exec.LookPath("chrome.exe"); lookErr == nil {
+		return path, nil
+	}
+	if path, lookErr := exec.LookPath("msedge.exe"); lookErr == nil {
+		return path, nil
+	}
+
+	return "", errors.New("no Chromium browser found; set CABCON_CHROMIUM_PATH or bundle chromium/chrome.exe with the app")
 }
 
 func (s *PDFService) renderHTMLToPDF(html string, filePath string) error {
@@ -129,7 +154,13 @@ func (s *PDFService) renderHTMLToPDF(html string, filePath string) error {
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			data, _, printErr := page.PrintToPDF().
 				WithPrintBackground(true).
-				WithPreferCSSPageSize(true).
+				WithPreferCSSPageSize(false).
+				WithPaperWidth(8.5).
+				WithPaperHeight(11.0).
+				WithMarginTop(0.35).
+				WithMarginRight(0.35).
+				WithMarginBottom(0.35).
+				WithMarginLeft(0.35).
 				Do(ctx)
 			if printErr != nil {
 				return printErr

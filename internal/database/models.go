@@ -34,6 +34,8 @@ type EstimateJob struct {
 	EstimateDate  time.Time          `json:"estimateDate"`
 	TotalAmount   float64            `json:"totalAmount"`
 	InstallTotal  float64            `json:"installTotal"`
+	InstallQty    float64            `gorm:"default:0" json:"installQty"`
+	InstallRate   float64            `gorm:"default:0" json:"installRate"`
 	MarkupPercent float64            `json:"markupPercent"`
 	MiscCharge    float64            `json:"miscCharge"`
 	SortOrder     int                `gorm:"default:0" json:"sortOrder"`

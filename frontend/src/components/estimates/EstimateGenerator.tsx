@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Printer, Save, ChevronLeft, Trash2 } from 'lucide-react';
+import { Plus, Printer, Save, ChevronLeft, Trash2, FileText } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
@@ -165,11 +165,15 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
         setSelectedCustomerId(estimate.customerId);
         setJobName(estimate.jobName);
         setMarkupPercent(estimate.markupPercent);
-        setInstallQty(0);
-        setInstallRate(0);
-        if (estimate.installTotal > 0) {
-          setInstallRate(estimate.installTotal);
-          setInstallQty(1);
+        if (estimate.installQty > 0 || estimate.installRate > 0) {
+          setInstallQty(estimate.installQty || 0);
+          setInstallRate(estimate.installRate || 0);
+        } else {
+          setInstallQty(0);
+          setInstallRate(estimate.installTotal || 0);
+          if (estimate.installTotal > 0) {
+            setInstallQty(1);
+          }
         }
         setMiscCharge(estimate.miscCharge);
         setViewMode('edit');
@@ -191,6 +195,8 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
       const estimate = await CreateEstimate({
         customerId: targetCustomerId,
         jobName: targetJobName,
+        installQty: 0,
+        installRate: 0,
         markupPercent: 0,
         miscCharge: 0,
       });
@@ -231,6 +237,8 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
         jobName: jobName.trim(),
         totalAmount: grandTotal,
         installTotal: installTotal,
+        installQty,
+        installRate,
         markupPercent,
         miscCharge,
       });
@@ -406,7 +414,7 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
       await OpenFileInDefaultApp(filePath);
     } catch (error) {
       console.error('Failed to save estimate PDF:', error);
-      showToast('Failed to save PDF', 'error');
+      showToast(`Failed to save PDF: ${error instanceof Error ? error.message : String(error)}`, 'error');
     }
   };
 
@@ -752,6 +760,7 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
                 Save
               </Button>
               <Button variant="secondary" onClick={() => void handleSaveEstimatePDF()}>
+                <FileText size={16} className="mr-2" />
                 Save PDF
               </Button>
               <Button onClick={handlePrintEstimate}>

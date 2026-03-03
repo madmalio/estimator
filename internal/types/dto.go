@@ -33,6 +33,8 @@ type CreatePriceListItemRequest struct {
 type CreateEstimateJobRequest struct {
 	CustomerID    uint    `json:"customerId"`
 	JobName       string  `json:"jobName"`
+	InstallQty    float64 `json:"installQty"`
+	InstallRate   float64 `json:"installRate"`
 	MarkupPercent float64 `json:"markupPercent"`
 	MiscCharge    float64 `json:"miscCharge"`
 }
@@ -53,6 +55,8 @@ type UpdateEstimateJobRequest struct {
 	JobName       string  `json:"jobName"`
 	TotalAmount   float64 `json:"totalAmount"`
 	InstallTotal  float64 `json:"installTotal"`
+	InstallQty    float64 `json:"installQty"`
+	InstallRate   float64 `json:"installRate"`
 	MarkupPercent float64 `json:"markupPercent"`
 	MiscCharge    float64 `json:"miscCharge"`
 }
