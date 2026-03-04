@@ -34,7 +34,7 @@ export function buildPrintDocumentHtml(printSectionSelector = '.print-only'): st
 
       @page {
         size: Letter;
-        margin: 0 !important;
+        margin: 0;
       }
 
       html,
@@ -44,25 +44,16 @@ export function buildPrintDocumentHtml(printSectionSelector = '.print-only'): st
         background: #ffffff !important;
       }
 
-      .pdf-page-wrapper {
-        box-sizing: border-box;
-        width: 100%;
-        min-height: 11in;
-        padding: 0.35in;
-        background: #ffffff;
-      }
-
       @media print {
         html,
-        body,
-        .pdf-page-wrapper {
+        body {
           background: #ffffff !important;
         }
       }
     </style>
   </head>
   <body>
-    <div class="pdf-page-wrapper">${section.outerHTML}</div>
+    ${section.outerHTML}
   </body>
 </html>`;
 }

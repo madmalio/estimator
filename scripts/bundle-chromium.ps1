@@ -12,14 +12,29 @@ function Resolve-AbsolutePath {
     return [System.IO.Path]::GetFullPath($Path)
 }
 
+function Resolve-WailsCommand {
+    $wailsCmd = Get-Command wails -ErrorAction SilentlyContinue
+    if ($null -ne $wailsCmd) {
+        return $wailsCmd.Source
+    }
+
+    $defaultGoBin = Join-Path $env:USERPROFILE "go\bin\wails.exe"
+    if (Test-Path $defaultGoBin) {
+        return $defaultGoBin
+    }
+
+    throw "Wails CLI not found. Install it or add it to PATH."
+}
+
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Resolve-AbsolutePath (Join-Path $scriptDir "..")
 
 if ($Build) {
     Write-Host "Running wails build..."
+    $wailsExe = Resolve-WailsCommand
     Push-Location $repoRoot
     try {
-        wails build
+        & $wailsExe build
     }
     finally {
         Pop-Location

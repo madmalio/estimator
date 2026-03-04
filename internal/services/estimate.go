@@ -13,6 +13,15 @@ type EstimateService struct {
 	db *gorm.DB
 }
 
+func normalizeEstimateStatus(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "draft", "quoted", "approved", "in-progress", "installed", "closed":
+		return strings.ToLower(strings.TrimSpace(status))
+	default:
+		return "draft"
+	}
+}
+
 func NewEstimateService() *EstimateService {
 	return &EstimateService{
 		db: database.GetDB(),
@@ -46,6 +55,10 @@ func (s *EstimateService) GetPage(req types.EstimatePageRequest) (*types.Estimat
 		Where("customers.archived = ?", false)
 
 	search := strings.TrimSpace(req.Search)
+	status := strings.TrimSpace(strings.ToLower(req.Status))
+	if status != "" && status != "all" {
+		baseQuery = baseQuery.Where("LOWER(estimate_jobs.status) = ?", status)
+	}
 	if search != "" {
 		like := "%" + strings.ToLower(search) + "%"
 		baseQuery = baseQuery.Where(
@@ -77,6 +90,10 @@ func (s *EstimateService) GetPage(req types.EstimatePageRequest) (*types.Estimat
 			like,
 			like,
 		)
+	}
+
+	if status != "" && status != "all" {
+		listQuery = listQuery.Where("LOWER(estimate_jobs.status) = ?", status)
 	}
 
 	queryErr := listQuery.Order("estimate_jobs.sort_order DESC, estimate_jobs.estimate_date DESC").
@@ -128,6 +145,7 @@ func (s *EstimateService) Create(req types.CreateEstimateJobRequest) (*database.
 	job := database.EstimateJob{
 		CustomerID:    req.CustomerID,
 		JobName:       req.JobName,
+		Status:        normalizeEstimateStatus(req.Status),
 		EstimateDate:  time.Now(),
 		InstallQty:    req.InstallQty,
 		InstallRate:   req.InstallRate,
@@ -153,6 +171,7 @@ func (s *EstimateService) Update(req types.UpdateEstimateJobRequest) (*database.
 
 	job.CustomerID = req.CustomerID
 	job.JobName = req.JobName
+	job.Status = normalizeEstimateStatus(req.Status)
 	job.TotalAmount = req.TotalAmount
 	job.InstallTotal = req.InstallTotal
 	job.InstallQty = req.InstallQty
@@ -175,6 +194,66 @@ func (s *EstimateService) Delete(id uint) error {
 		// Delete the job
 		return tx.Delete(&database.EstimateJob{}, id).Error
 	})
+}
+
+func (s *EstimateService) Duplicate(id uint) (*database.EstimateJob, error) {
+	original, err := s.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	jobName := strings.TrimSpace(original.JobName)
+	if jobName == "" {
+		jobName = "Custom Cabinet"
+	}
+
+	var newJobID uint
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		var maxSortOrder int
+		tx.Model(&database.EstimateJob{}).Select("COALESCE(MAX(sort_order), -1)").Scan(&maxSortOrder)
+
+		newJob := database.EstimateJob{
+			CustomerID:    original.CustomerID,
+			JobName:       jobName + " (Copy)",
+			Status:        "draft",
+			EstimateDate:  time.Now(),
+			TotalAmount:   original.TotalAmount,
+			InstallTotal:  original.InstallTotal,
+			InstallQty:    original.InstallQty,
+			InstallRate:   original.InstallRate,
+			MarkupPercent: original.MarkupPercent,
+			MiscCharge:    original.MiscCharge,
+			SortOrder:     maxSortOrder + 1,
+		}
+
+		if err := tx.Create(&newJob).Error; err != nil {
+			return err
+		}
+
+		for _, item := range original.LineItems {
+			copiedItem := database.EstimateLineItem{
+				JobID:        newJob.JobID,
+				ItemName:     item.ItemName,
+				CategoryName: item.CategoryName,
+				Quantity:     item.Quantity,
+				UnitPrice:    item.UnitPrice,
+				LineTotal:    item.LineTotal,
+				SortOrder:    item.SortOrder,
+			}
+
+			if err := tx.Create(&copiedItem).Error; err != nil {
+				return err
+			}
+		}
+
+		newJobID = newJob.JobID
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return s.GetByID(newJobID)
 }
 
 func (s *EstimateService) AddLineItem(req types.CreateLineItemRequest) (*database.EstimateLineItem, error) {

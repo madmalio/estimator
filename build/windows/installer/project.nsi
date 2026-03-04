@@ -52,12 +52,22 @@ ManifestDPIAware true
 
 !define MUI_ICON "..\icon.ico"
 !define MUI_UNICON "..\icon.ico"
-# !define MUI_WELCOMEFINISHPAGE_BITMAP "resources\leftimage.bmp" #Include this to add a bitmap on the left side of the Welcome Page. Must be a size of 164x314
+!define MUI_WELCOMEPAGE_TITLE "Welcome to the CabCon Setup"
+!define MUI_WELCOMEPAGE_TEXT "This setup installs CabCon and its bundled PDF runtime on your computer.$\r$\n$\r$\nClick Next to continue."
+!define MUI_FINISHPAGE_TITLE "CabCon Setup Complete"
+!define MUI_FINISHPAGE_TEXT "CabCon has been installed successfully."
+!define MUI_FINISHPAGE_RUN "$INSTDIR\${PRODUCT_EXECUTABLE}"
+!define MUI_FINISHPAGE_RUN_TEXT "Launch CabCon now"
+!define MUI_WELCOMEFINISHPAGE_BITMAP "resources\leftimage.bmp"
+!define MUI_HEADERIMAGE
+!define MUI_HEADERIMAGE_BITMAP "resources\header.bmp"
+!define MUI_HEADERIMAGE_RIGHT
 !define MUI_FINISHPAGE_NOAUTOCLOSE # Wait on the INSTFILES page so the user can take a look into the details of the installation steps
 !define MUI_ABORTWARNING # This will warn the user if they exit from the installer.
 
 !insertmacro MUI_PAGE_WELCOME # Welcome to the installer page.
 # !insertmacro MUI_PAGE_LICENSE "resources\eula.txt" # Adds a EULA page to the installer
+!insertmacro MUI_PAGE_COMPONENTS # Lets user choose optional shortcut tasks.
 !insertmacro MUI_PAGE_DIRECTORY # In which folder install page.
 !insertmacro MUI_PAGE_INSTFILES # Installing page.
 !insertmacro MUI_PAGE_FINISH # Finished installation page.
@@ -79,7 +89,9 @@ Function .onInit
    !insertmacro wails.checkArchitecture
 FunctionEnd
 
-Section
+Section "Core Application (Required)" SecCore
+    SectionIn RO
+
     !insertmacro wails.setShellContext
 
     !insertmacro wails.webview2runtime
@@ -88,14 +100,33 @@ Section
 
     !insertmacro wails.files
 
-    CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
-    CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+    IfFileExists "..\..\bin\chromium\chrome.exe" 0 +4
+    CreateDirectory "$INSTDIR\chromium"
+    SetOutPath "$INSTDIR\chromium"
+    File /nonfatal /r "..\..\bin\chromium\*"
+    SetOutPath $INSTDIR
 
     !insertmacro wails.associateFiles
     !insertmacro wails.associateCustomProtocols
 
     !insertmacro wails.writeUninstaller
 SectionEnd
+
+Section "Start Menu Shortcut" SecStartMenuShortcut
+    !insertmacro wails.setShellContext
+    CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+SectionEnd
+
+Section "Desktop Shortcut" SecDesktopShortcut
+    !insertmacro wails.setShellContext
+    CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+SectionEnd
+
+!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecCore} "Install CabCon application files and bundled runtime dependencies."
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecStartMenuShortcut} "Create a Start Menu shortcut for CabCon."
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktopShortcut} "Create a Desktop shortcut for CabCon."
+!insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 Section "uninstall"
     !insertmacro wails.setShellContext

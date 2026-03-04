@@ -58,6 +58,14 @@ export function DeleteTaxRate(arg1) {
   return window['go']['main']['App']['DeleteTaxRate'](arg1);
 }
 
+export function DuplicateEstimate(arg1) {
+  return window['go']['main']['App']['DuplicateEstimate'](arg1);
+}
+
+export function DuplicateManualQuote(arg1) {
+  return window['go']['main']['App']['DuplicateManualQuote'](arg1);
+}
+
 export function GenerateEstimatePDF(arg1, arg2) {
   return window['go']['main']['App']['GenerateEstimatePDF'](arg1, arg2);
 }
@@ -140,6 +148,10 @@ export function GetPriceListItemsByCategory(arg1) {
 
 export function OpenFileInDefaultApp(arg1) {
   return window['go']['main']['App']['OpenFileInDefaultApp'](arg1);
+}
+
+export function SearchGlobal(arg1) {
+  return window['go']['main']['App']['SearchGlobal'](arg1);
 }
 
 export function UpdateCategory(arg1, arg2) {

@@ -27,6 +27,7 @@ export interface EstimateJob {
   customerId: number;
   customer?: Customer;
   jobName: string;
+  status: string;
   estimateDate: string;
   totalAmount: number;
   installTotal: number;
@@ -82,6 +83,7 @@ export interface CreatePriceListItemRequest {
 export interface CreateEstimateJobRequest {
   customerId: number;
   jobName: string;
+  status: string;
   installQty: number;
   installRate: number;
   markupPercent: number;
@@ -100,6 +102,7 @@ export interface UpdateEstimateJobRequest {
   jobId: number;
   customerId: number;
   jobName: string;
+  status: string;
   totalAmount: number;
   installTotal: number;
   installQty: number;
@@ -124,6 +127,7 @@ export interface CompanySettings {
   phone: string;
   email: string;
   theme: string;
+  openPdfAfterSave: boolean;
   defaultTermsBlock1: string;
   defaultTermsBlock2: string;
   defaultTermsBlock3: string;
@@ -153,6 +157,7 @@ export interface ManualQuote {
   customerId?: number;
   customer?: Customer;
   jobName: string;
+  status: string;
   quoteDate: string;
   descriptionBody: string;
   lineItems?: ManualQuoteLineItem[];
@@ -179,6 +184,14 @@ export interface ManualQuotePageResponse {
   pageSize: number;
 }
 
+export interface GlobalSearchResult {
+  type: 'customer' | 'proposal' | 'estimate';
+  id: number;
+  title: string;
+  subtitle: string;
+  meta: string;
+}
+
 export interface EstimatePageResponse {
   items: EstimateJob[];
   total: number;
@@ -189,6 +202,7 @@ export interface EstimatePageResponse {
 export interface CreateManualQuoteRequest {
   customerId?: number;
   jobName: string;
+  status: string;
   descriptionBody: string;
   lineItems: ManualQuoteLineItemRequest[];
   subtotal: number;
@@ -231,6 +245,7 @@ export interface UpdateCompanySettingsRequest {
   phone: string;
   email: string;
   theme: string;
+  openPdfAfterSave: boolean;
   defaultTermsBlock1: string;
   defaultTermsBlock2: string;
   defaultTermsBlock3: string;

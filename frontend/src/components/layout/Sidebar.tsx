@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { FileText, Users, List, Settings, Clipboard, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Users, List, Settings, Clipboard, ChevronLeft, ChevronRight, Search, LayoutDashboard } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-export type ViewType = 'estimates' | 'manualquotes' | 'customers' | 'pricelist' | 'settings';
+export type ViewType = 'dashboard' | 'estimates' | 'manualquotes' | 'customers' | 'pricelist' | 'settings';
 
 interface SidebarProps {
   activeView: ViewType;
   onViewChange: (view: ViewType) => void;
+  onOpenSearch: () => void;
 }
 
 interface NavItem {
@@ -16,6 +17,7 @@ interface NavItem {
 }
 
 const mainNavItems: NavItem[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
   { id: 'customers', label: 'Customers', icon: <Users size={20} /> },
   { id: 'manualquotes', label: 'Proposals', icon: <Clipboard size={20} /> },
   { id: 'estimates', label: 'Custom Cabinets', icon: <FileText size={20} /> },
@@ -24,7 +26,7 @@ const mainNavItems: NavItem[] = [
 
 const settingsNavItem: NavItem = { id: 'settings', label: 'Settings', icon: <Settings size={20} /> };
 
-export function Sidebar({ activeView, onViewChange }: SidebarProps) {
+export function Sidebar({ activeView, onViewChange, onOpenSearch }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
@@ -51,6 +53,23 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1">
+        <button
+          onClick={onOpenSearch}
+          title={isCollapsed ? 'Search (Ctrl+K)' : undefined}
+          className={cn(
+            'w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+            isCollapsed ? 'justify-center' : 'gap-3',
+            'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
+          )}
+        >
+          <Search size={20} />
+          {!isCollapsed && (
+            <span className="flex w-full items-center justify-between">
+              <span>Search</span>
+              <span className="text-[10px] text-zinc-500">Ctrl+K</span>
+            </span>
+          )}
+        </button>
         {mainNavItems.map((item) => (
           <button
             key={item.id}

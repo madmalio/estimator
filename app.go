@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os/exec"
 	"runtime"
+	"strings"
+	"time"
 )
 
 // App struct
@@ -164,6 +166,10 @@ func (a *App) DeleteEstimate(id uint) error {
 	return a.estimateService.Delete(id)
 }
 
+func (a *App) DuplicateEstimate(id uint) (*database.EstimateJob, error) {
+	return a.estimateService.Duplicate(id)
+}
+
 func (a *App) AddLineItem(req types.CreateLineItemRequest) (*database.EstimateLineItem, error) {
 	return a.estimateService.AddLineItem(req)
 }
@@ -210,6 +216,10 @@ func (a *App) DeleteManualQuote(id uint) error {
 	return a.manualQuoteService.Delete(id)
 }
 
+func (a *App) DuplicateManualQuote(id uint) (*database.ManualQuote, error) {
+	return a.manualQuoteService.Duplicate(id)
+}
+
 // ==================== PDF Methods ====================
 
 func (a *App) GenerateEstimatePDF(jobID uint, html string) (string, error) {
@@ -221,22 +231,105 @@ func (a *App) GenerateProposalPDF(quoteID uint, html string) (string, error) {
 }
 
 func (a *App) OpenFileInDefaultApp(filePath string) error {
-	var cmd *exec.Cmd
+	var attempts [][]string
 
 	switch runtime.GOOS {
 	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", "", filePath)
+		attempts = [][]string{
+			{"rundll32", "url.dll,FileProtocolHandler", filePath},
+			{"explorer", filePath},
+			{"cmd", "/c", "start", "", filePath},
+		}
 	case "darwin":
-		cmd = exec.Command("open", filePath)
+		attempts = [][]string{{"open", filePath}}
 	default:
-		cmd = exec.Command("xdg-open", filePath)
+		attempts = [][]string{{"xdg-open", filePath}}
 	}
 
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to open file %q: %w", filePath, err)
+	var lastErr error
+	for _, attempt := range attempts {
+		if len(attempt) == 0 {
+			continue
+		}
+
+		for retry := 0; retry < 3; retry++ {
+			cmd := exec.Command(attempt[0], attempt[1:]...)
+			if err := cmd.Start(); err == nil {
+				return nil
+			} else {
+				lastErr = err
+				time.Sleep(200 * time.Millisecond)
+			}
+		}
 	}
 
-	return nil
+	return fmt.Errorf("failed to open file %q: %w", filePath, lastErr)
+}
+
+func (a *App) SearchGlobal(query string) ([]types.GlobalSearchResult, error) {
+	results := make([]types.GlobalSearchResult, 0)
+
+	customerPage, err := a.customerService.GetPage(types.CustomerPageRequest{
+		Page:         1,
+		PageSize:     5,
+		Search:       query,
+		ShowArchived: false,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, customer := range customerPage.Items {
+		results = append(results, types.GlobalSearchResult{
+			Type:     "customer",
+			ID:       customer.ID,
+			Title:    customer.Name,
+			Subtitle: "Customer",
+			Meta:     strings.TrimSpace(strings.Trim(customer.Phone+" | "+customer.Email, " |")),
+		})
+	}
+
+	proposalPage, err := a.manualQuoteService.GetPage(types.ManualQuotePageRequest{
+		Page:     1,
+		PageSize: 5,
+		Search:   query,
+		Status:   "all",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, proposal := range proposalPage.Items {
+		results = append(results, types.GlobalSearchResult{
+			Type:     "proposal",
+			ID:       proposal.ID,
+			Title:    proposal.JobName,
+			Subtitle: "Proposal",
+			Meta:     fmt.Sprintf("%s | %s", proposal.Customer.Name, proposal.QuoteDate.Format("01/02/2006")),
+		})
+	}
+
+	estimatePage, err := a.estimateService.GetPage(types.EstimatePageRequest{
+		Page:     1,
+		PageSize: 5,
+		Search:   query,
+		Status:   "all",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, estimate := range estimatePage.Items {
+		results = append(results, types.GlobalSearchResult{
+			Type:     "estimate",
+			ID:       estimate.JobID,
+			Title:    estimate.JobName,
+			Subtitle: "Custom Cabinet",
+			Meta:     fmt.Sprintf("%s | %s", estimate.Customer.Name, estimate.EstimateDate.Format("01/02/2006")),
+		})
+	}
+
+	return results, nil
 }
 
 // ==================== Settings Methods ====================

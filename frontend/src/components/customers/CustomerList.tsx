@@ -17,6 +17,11 @@ import {
 interface CustomerListProps {
   onCreateProposalForCustomer?: (customer: Customer) => void;
   onCreateEstimateForCustomer?: (customer: Customer) => void;
+  searchRequest?: {
+    query: string;
+    token: number;
+  } | null;
+  onSearchRequestHandled?: () => void;
 }
 
 interface CustomerActionMenuState {
@@ -28,6 +33,8 @@ interface CustomerActionMenuState {
 export function CustomerList({
   onCreateProposalForCustomer,
   onCreateEstimateForCustomer,
+  searchRequest,
+  onSearchRequestHandled,
 }: CustomerListProps) {
   const [pageSize, setPageSize] = useState(10);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -40,6 +47,7 @@ export function CustomerList({
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCustomers, setTotalCustomers] = useState(0);
   const [actionMenuState, setActionMenuState] = useState<CustomerActionMenuState | null>(null);
+  const [lastHandledSearchToken, setLastHandledSearchToken] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
 
@@ -80,6 +88,22 @@ export function CustomerList({
   useEffect(() => {
     void fetchCustomersPage();
   }, [currentPage, searchTerm, showArchived, pageSize]);
+
+  useEffect(() => {
+    if (!searchRequest) {
+      return;
+    }
+
+    if (searchRequest.token === lastHandledSearchToken) {
+      return;
+    }
+
+    setLastHandledSearchToken(searchRequest.token);
+    setShowArchived(false);
+    setSearchTerm(searchRequest.query);
+    setCurrentPage(1);
+    onSearchRequestHandled?.();
+  }, [searchRequest, lastHandledSearchToken, onSearchRequestHandled]);
 
   const handleCreate = async (data: CreateCustomerRequest) => {
     try {

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Printer, Save, ChevronLeft, Trash2, FileText } from 'lucide-react';
+import { Plus, Printer, Save, ChevronLeft, Trash2, FileText, Copy } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
+import { StatusBadge } from '../ui/StatusBadge';
 import { CustomerCombobox } from '../ui/CustomerCombobox';
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Modal } from '../ui/Modal';
@@ -12,6 +13,7 @@ import { TotalsCard } from './TotalsCard';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { buildPrintDocumentHtml } from '../../lib/printHtml';
 import type {
+  CompanySettings,
   Customer,
   Category,
   EstimateJob,
@@ -26,12 +28,14 @@ import {
   CreateEstimate,
   UpdateEstimate,
   DeleteEstimate,
+  DuplicateEstimate,
   AddLineItem,
   DeleteLineItem,
   UpdateLineItem,
   UpdateLineItemSortOrder,
   GenerateEstimatePDF,
   OpenFileInDefaultApp,
+  GetCompanySettings,
 } from '../../../wailsjs/go/main/App';
 
 type ViewMode = 'list' | 'edit';
@@ -45,21 +49,44 @@ interface QuickCreateForCustomer {
 interface EstimateGeneratorProps {
   quickCreateForCustomer?: QuickCreateForCustomer | null;
   onQuickCreateHandled?: () => void;
+  openEstimateRecord?: {
+    id: number;
+    token: number;
+  } | null;
+  onOpenEstimateHandled?: () => void;
+  statusRequest?: {
+    status: string;
+    token: number;
+  } | null;
+  onStatusRequestHandled?: () => void;
 }
 
-export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled }: EstimateGeneratorProps) {
+const customCabinetStatuses = ['draft', 'quoted', 'approved', 'in-progress', 'installed', 'closed'] as const;
+
+export function EstimateGenerator({
+  quickCreateForCustomer,
+  onQuickCreateHandled,
+  openEstimateRecord,
+  onOpenEstimateHandled,
+  statusRequest,
+  onStatusRequestHandled,
+}: EstimateGeneratorProps) {
   const [pageSize, setPageSize] = useState(10);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [estimates, setEstimates] = useState<EstimateJob[]>([]);
   const [totalEstimates, setTotalEstimates] = useState(0);
   const [currentEstimate, setCurrentEstimate] = useState<EstimateJob | null>(null);
   const [estimateToDelete, setEstimateToDelete] = useState<EstimateJob | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [lastHandledQuickCreateToken, setLastHandledQuickCreateToken] = useState<number | null>(null);
+  const [lastHandledOpenToken, setLastHandledOpenToken] = useState<number | null>(null);
+  const [lastHandledStatusToken, setLastHandledStatusToken] = useState<number | null>(null);
   const [isCreatingCustomCabinet, setIsCreatingCustomCabinet] = useState(false);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
@@ -86,20 +113,22 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
 
   const fetchStaticData = async () => {
     try {
-      const [customersData, categoriesData] = await Promise.all([
+      const [customersData, categoriesData, settingsData] = await Promise.all([
         GetAllCustomers(),
         GetAllCategoriesWithItems(),
+        GetCompanySettings(),
       ]);
       setCustomers(customersData || []);
       setCategories(categoriesData || []);
+      setCompanySettings((settingsData || null) as CompanySettings | null);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     }
   };
 
-  const fetchEstimatesPage = async (page = currentPage, search = searchTerm, size = pageSize) => {
+  const fetchEstimatesPage = async (page = currentPage, search = searchTerm, size = pageSize, status = statusFilter) => {
     try {
-      const response = await GetEstimatesPage({ page, pageSize: size, search });
+      const response = await GetEstimatesPage({ page, pageSize: size, search, status });
       setEstimates(response?.items || []);
       setTotalEstimates(response?.total || 0);
     } catch (error) {
@@ -121,7 +150,7 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
       return;
     }
     void fetchEstimatesPage();
-  }, [currentPage, searchTerm, viewMode, pageSize]);
+  }, [currentPage, searchTerm, statusFilter, viewMode, pageSize]);
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
   const categoryItems = selectedCategory?.items || [];
@@ -148,7 +177,7 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, pageSize]);
+  }, [searchTerm, statusFilter, pageSize]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -195,6 +224,7 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
       const estimate = await CreateEstimate({
         customerId: targetCustomerId,
         jobName: targetJobName,
+        status: 'draft',
         installQty: 0,
         installRate: 0,
         markupPercent: 0,
@@ -227,6 +257,36 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
     onQuickCreateHandled?.();
   }, [quickCreateForCustomer, loading, lastHandledQuickCreateToken, onQuickCreateHandled]);
 
+  useEffect(() => {
+    if (!openEstimateRecord || loading) {
+      return;
+    }
+
+    if (openEstimateRecord.token === lastHandledOpenToken) {
+      return;
+    }
+
+    setLastHandledOpenToken(openEstimateRecord.token);
+    void loadEstimate(openEstimateRecord.id);
+    onOpenEstimateHandled?.();
+  }, [openEstimateRecord, loading, lastHandledOpenToken, onOpenEstimateHandled]);
+
+  useEffect(() => {
+    if (!statusRequest || loading) {
+      return;
+    }
+
+    if (statusRequest.token === lastHandledStatusToken) {
+      return;
+    }
+
+    setLastHandledStatusToken(statusRequest.token);
+    setStatusFilter(statusRequest.status || 'all');
+    setCurrentPage(1);
+    setViewMode('list');
+    onStatusRequestHandled?.();
+  }, [statusRequest, loading, lastHandledStatusToken, onStatusRequestHandled]);
+
   const handleSaveEstimate = async (showSuccessMessage = true) => {
     if (!currentEstimate) return;
 
@@ -235,6 +295,7 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
         jobId: currentEstimate.jobId,
         customerId: selectedCustomerId,
         jobName: jobName.trim(),
+        status: currentEstimate.status || 'draft',
         totalAmount: grandTotal,
         installTotal: installTotal,
         installQty,
@@ -280,6 +341,21 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
   const openDeleteEstimateModal = (estimate: EstimateJob) => {
     setEstimateToDelete(estimate);
     setIsDeleteModalOpen(true);
+  };
+
+  const handleDuplicateEstimate = async (jobId: number) => {
+    try {
+      const duplicated = await DuplicateEstimate(jobId);
+      const nextEstimate = (duplicated as EstimateJob) || null;
+      if (nextEstimate?.jobId) {
+        await fetchEstimatesPage();
+        await loadEstimate(nextEstimate.jobId);
+        showToast('Custom cabinet duplicated', 'success');
+      }
+    } catch (error) {
+      console.error('Failed to duplicate custom cabinet:', error);
+      showToast('Failed to duplicate custom cabinet', 'error');
+    }
   };
 
   const handleAddPriceListItem = async () => {
@@ -355,6 +431,11 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
     }
   };
 
+  const handleStatusChange = (status: string) => {
+    if (!currentEstimate) return;
+    setCurrentEstimate({ ...currentEstimate, status });
+  };
+
   const handleUpdateLineItem = async (
     id: number,
     itemName: string,
@@ -407,14 +488,24 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
 
     await handleSaveEstimate(false);
 
+    let filePath = '';
     try {
       const printHtml = buildPrintDocumentHtml();
-      const filePath = await GenerateEstimatePDF(currentEstimate.jobId, printHtml);
+      filePath = await GenerateEstimatePDF(currentEstimate.jobId, printHtml);
       showToast('PDF saved successfully', 'success');
-      await OpenFileInDefaultApp(filePath);
     } catch (error) {
       console.error('Failed to save estimate PDF:', error);
       showToast(`Failed to save PDF: ${error instanceof Error ? error.message : String(error)}`, 'error');
+      return;
+    }
+
+    if (companySettings?.openPdfAfterSave ?? true) {
+      try {
+        await OpenFileInDefaultApp(filePath);
+      } catch (error) {
+        console.error('PDF saved but failed to open estimate PDF:', error);
+        showToast('PDF saved, but could not open automatically. Open it from the folder.', 'error');
+      }
     }
   };
 
@@ -485,11 +576,24 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
         </Button>
       </div>
 
-      <Input
-        placeholder="Search custom cabinets by job, customer, or date"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-      />
+      <div className="grid grid-cols-[1fr_180px] gap-2">
+        <Input
+          placeholder="Search custom cabinets by job, customer, or date"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <Select
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: 'all', label: 'All Statuses' },
+            ...customCabinetStatuses.map((status) => ({
+              value: status,
+              label: status.charAt(0).toUpperCase() + status.slice(1),
+            })),
+          ]}
+        />
+      </div>
 
         {totalEstimates === 0 ? (
           <Card>
@@ -512,6 +616,9 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
                     </th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-zinc-400">
                       Customer
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-zinc-400">
+                      Status
                     </th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-zinc-400">
                       Date
@@ -538,26 +645,40 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
                         {estimate.customer?.name || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-zinc-400">
+                        <StatusBadge status={estimate.status} kind="estimate" />
+                      </td>
+                      <td className="px-4 py-3 text-sm text-zinc-400">
                         {formatDate(estimate.estimateDate)}
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-zinc-100 text-right">
                         {formatCurrency(estimate.totalAmount)}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void handleQuickPrintEstimate(estimate.jobId);
-                          }}
-                        >
-                          <Printer size={14} className="text-zinc-400" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
+                       <td className="px-4 py-3 text-right">
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             void handleQuickPrintEstimate(estimate.jobId);
+                           }}
+                         >
+                           <Printer size={14} className="text-zinc-400" />
+                         </Button>
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             void handleDuplicateEstimate(estimate.jobId);
+                           }}
+                           title="Duplicate custom cabinet"
+                         >
+                           <Copy size={14} className="text-zinc-400" />
+                         </Button>
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={(e) => {
                             e.stopPropagation();
                             openDeleteEstimateModal(estimate);
                           }}
@@ -775,7 +896,7 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
           <div className="col-span-2 space-y-4">
             <Card>
               <CardContent className="p-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <CustomerCombobox
                     label="Customer"
                     customers={activeCustomers}
@@ -788,6 +909,15 @@ export function EstimateGenerator({ quickCreateForCustomer, onQuickCreateHandled
                     value={jobName}
                     onChange={(e) => setJobName(e.target.value)}
                     placeholder="e.g., Kitchen Remodel"
+                  />
+                  <Select
+                    label="Status"
+                    value={currentEstimate?.status || 'draft'}
+                    onChange={handleStatusChange}
+                    options={customCabinetStatuses.map((status) => ({
+                      value: status,
+                      label: status.charAt(0).toUpperCase() + status.slice(1),
+                    }))}
                   />
                 </div>
               </CardContent>

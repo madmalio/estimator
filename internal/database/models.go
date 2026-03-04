@@ -31,6 +31,7 @@ type EstimateJob struct {
 	CustomerID    uint               `gorm:"not null" json:"customerId"`
 	Customer      Customer           `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
 	JobName       string             `gorm:"not null" json:"jobName"`
+	Status        string             `gorm:"not null;default:'draft';index" json:"status"`
 	EstimateDate  time.Time          `json:"estimateDate"`
 	TotalAmount   float64            `json:"totalAmount"`
 	InstallTotal  float64            `json:"installTotal"`
@@ -61,6 +62,7 @@ type CompanySettings struct {
 	Phone                 string `json:"phone"`
 	Email                 string `json:"email"`
 	Theme                 string `gorm:"default:'system'" json:"theme"`
+	OpenPDFAfterSave      bool   `gorm:"default:true" json:"openPdfAfterSave"`
 	DefaultTermsBlock1    string `gorm:"type:text" json:"defaultTermsBlock1"`
 	DefaultTermsBlock2    string `gorm:"type:text" json:"defaultTermsBlock2"`
 	DefaultTermsBlock3    string `gorm:"type:text" json:"defaultTermsBlock3"`
@@ -84,6 +86,7 @@ type ManualQuote struct {
 	CustomerID      *uint                 `json:"customerId"`
 	Customer        *Customer             `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
 	JobName         string                `json:"jobName"`
+	Status          string                `gorm:"not null;default:'draft';index" json:"status"`
 	QuoteDate       time.Time             `json:"quoteDate"`
 	DescriptionBody string                `gorm:"type:text" json:"descriptionBody"`
 	LineItems       []ManualQuoteLineItem `gorm:"foreignKey:ManualQuoteID" json:"lineItems,omitempty"`

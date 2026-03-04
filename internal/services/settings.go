@@ -41,6 +41,7 @@ func (s *SettingsService) GetCompanySettings() (*database.CompanySettings, error
 		ID:                    1,
 		CompanyName:           "CabCon",
 		Theme:                 "system",
+		OpenPDFAfterSave:      true,
 		DefaultTermsBlock1:    defaultTermsBlock1,
 		DefaultTermsBlock2:    defaultTermsBlock2,
 		DefaultTermsBlock3:    defaultTermsBlock3,
@@ -68,6 +69,7 @@ func (s *SettingsService) UpdateCompanySettings(req types.UpdateCompanySettingsR
 	settings.Phone = req.Phone
 	settings.Email = req.Email
 	settings.Theme = req.Theme
+	settings.OpenPDFAfterSave = req.OpenPDFAfterSave
 	settings.DefaultTermsBlock1 = req.DefaultTermsBlock1
 	settings.DefaultTermsBlock2 = req.DefaultTermsBlock2
 	settings.DefaultTermsBlock3 = req.DefaultTermsBlock3

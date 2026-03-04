@@ -35,6 +35,7 @@ type CreateEstimateJobRequest struct {
 	JobName       string  `json:"jobName"`
 	InstallQty    float64 `json:"installQty"`
 	InstallRate   float64 `json:"installRate"`
+	Status        string  `json:"status"`
 	MarkupPercent float64 `json:"markupPercent"`
 	MiscCharge    float64 `json:"miscCharge"`
 }
@@ -57,6 +58,7 @@ type UpdateEstimateJobRequest struct {
 	InstallTotal  float64 `json:"installTotal"`
 	InstallQty    float64 `json:"installQty"`
 	InstallRate   float64 `json:"installRate"`
+	Status        string  `json:"status"`
 	MarkupPercent float64 `json:"markupPercent"`
 	MiscCharge    float64 `json:"miscCharge"`
 }
@@ -78,6 +80,7 @@ type UpdateCompanySettingsRequest struct {
 	Phone                 string `json:"phone"`
 	Email                 string `json:"email"`
 	Theme                 string `json:"theme"`
+	OpenPDFAfterSave      bool   `json:"openPdfAfterSave"`
 	DefaultTermsBlock1    string `json:"defaultTermsBlock1"`
 	DefaultTermsBlock2    string `json:"defaultTermsBlock2"`
 	DefaultTermsBlock3    string `json:"defaultTermsBlock3"`
@@ -90,6 +93,7 @@ type UpdateCompanySettingsRequest struct {
 type CreateManualQuoteRequest struct {
 	CustomerID      *uint                        `json:"customerId"`
 	JobName         string                       `json:"jobName"`
+	Status          string                       `json:"status"`
 	DescriptionBody string                       `json:"descriptionBody"`
 	LineItems       []ManualQuoteLineItemRequest `json:"lineItems"`
 	Subtotal        float64                      `json:"subtotal"`
@@ -110,6 +114,7 @@ type UpdateManualQuoteRequest struct {
 	ID              uint                         `json:"id"`
 	CustomerID      *uint                        `json:"customerId"`
 	JobName         string                       `json:"jobName"`
+	Status          string                       `json:"status"`
 	DescriptionBody string                       `json:"descriptionBody"`
 	LineItems       []ManualQuoteLineItemRequest `json:"lineItems"`
 	Subtotal        float64                      `json:"subtotal"`
@@ -149,12 +154,14 @@ type EstimatePageRequest struct {
 	Page     int    `json:"page"`
 	PageSize int    `json:"pageSize"`
 	Search   string `json:"search"`
+	Status   string `json:"status"`
 }
 
 type ManualQuotePageRequest struct {
 	Page     int    `json:"page"`
 	PageSize int    `json:"pageSize"`
 	Search   string `json:"search"`
+	Status   string `json:"status"`
 }
 
 type CustomerPageResponse struct {
@@ -176,4 +183,12 @@ type ManualQuotePageResponse struct {
 	Total    int64                  `json:"total"`
 	Page     int                    `json:"page"`
 	PageSize int                    `json:"pageSize"`
+}
+
+type GlobalSearchResult struct {
+	Type     string `json:"type"`
+	ID       uint   `json:"id"`
+	Title    string `json:"title"`
+	Subtitle string `json:"subtitle"`
+	Meta     string `json:"meta"`
 }

@@ -64,6 +64,7 @@ const defaultSettings: UpdateCompanySettingsRequest = {
   phone: '',
   email: '',
   theme: 'system',
+  openPdfAfterSave: true,
   defaultTermsBlock1,
   defaultTermsBlock2,
   defaultTermsBlock3,
@@ -258,6 +259,7 @@ export function SettingsView() {
         phone: settingsData?.phone || '',
         email: settingsData?.email || '',
         theme: selectedTheme,
+        openPdfAfterSave: settingsData?.openPdfAfterSave ?? true,
         defaultTermsBlock1: settingsData?.defaultTermsBlock1 || defaultTermsBlock1,
         defaultTermsBlock2: settingsData?.defaultTermsBlock2 || defaultTermsBlock2,
         defaultTermsBlock3: settingsData?.defaultTermsBlock3 || defaultTermsBlock3,
@@ -300,6 +302,7 @@ export function SettingsView() {
         phone: settings.phone.trim(),
         email: settings.email.trim(),
         theme: settings.theme,
+        openPdfAfterSave: settings.openPdfAfterSave,
         defaultTermsBlock1: settings.defaultTermsBlock1.trim(),
         defaultTermsBlock2: settings.defaultTermsBlock2.trim(),
         defaultTermsBlock3: settings.defaultTermsBlock3.trim(),
@@ -498,6 +501,7 @@ export function SettingsView() {
       phone: '',
       email: '',
       theme: 'system',
+      openPdfAfterSave: true,
       defaultTermsBlock1,
       defaultTermsBlock2,
       defaultTermsBlock3,
@@ -533,6 +537,7 @@ export function SettingsView() {
           phone: settingsData?.phone || '',
           email: settingsData?.email || '',
           theme: normalizeTheme(settingsData?.theme),
+          openPdfAfterSave: settingsData?.openPdfAfterSave ?? true,
           defaultTermsBlock1: settingsData?.defaultTermsBlock1 || defaultTermsBlock1,
           defaultTermsBlock2: settingsData?.defaultTermsBlock2 || defaultTermsBlock2,
           defaultTermsBlock3: settingsData?.defaultTermsBlock3 || defaultTermsBlock3,
@@ -561,7 +566,7 @@ export function SettingsView() {
       const link = document.createElement('a');
       const dateText = new Date().toISOString().slice(0, 10);
       link.href = url;
-      link.download = `cabinet-estimator-backup-${dateText}.json`;
+      link.download = `cabcon-backup-${dateText}.json`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -638,6 +643,7 @@ export function SettingsView() {
         const createdEstimate = await CreateEstimate({
           customerId: mappedCustomerId,
           jobName: estimate.jobName,
+          status: estimate.status || 'draft',
           installQty: estimate.installQty || 0,
           installRate: estimate.installRate || 0,
           markupPercent: estimate.markupPercent,
@@ -658,6 +664,7 @@ export function SettingsView() {
           jobId: createdEstimate.jobId,
           customerId: mappedCustomerId,
           jobName: estimate.jobName,
+          status: estimate.status || 'draft',
           totalAmount: estimate.totalAmount,
           installTotal: estimate.installTotal,
           installQty: estimate.installQty || 0,
@@ -679,6 +686,7 @@ export function SettingsView() {
         await CreateManualQuote(new wailsTypes.CreateManualQuoteRequest({
           customerId: mappedCustomerId,
           jobName: quote.jobName,
+          status: quote.status || 'draft',
           descriptionBody: quote.descriptionBody,
           lineItems: (quote.lineItems || []).slice().sort((a, b) => a.sortOrder - b.sortOrder).map((item) => ({
             itemName: item.itemName,
@@ -708,6 +716,7 @@ export function SettingsView() {
           phone: payload.settings.phone || '',
           email: payload.settings.email || '',
           theme: normalizeTheme(payload.settings.theme),
+          openPdfAfterSave: payload.settings.openPdfAfterSave ?? true,
           defaultTermsBlock1: payload.settings.defaultTermsBlock1 || defaultTermsBlock1,
           defaultTermsBlock2: payload.settings.defaultTermsBlock2 || defaultTermsBlock2,
           defaultTermsBlock3: payload.settings.defaultTermsBlock3 || defaultTermsBlock3,
@@ -894,6 +903,20 @@ export function SettingsView() {
                     onChange={(e) => handleChange('email', e.target.value)}
                     placeholder="you@company.com"
                   />
+                </div>
+
+                <div className="rounded-lg border border-zinc-700 bg-zinc-900/50 p-3">
+                  <label className="inline-flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={settings.openPdfAfterSave}
+                      onChange={(e) => setSettings((prev) => ({ ...prev, openPdfAfterSave: e.target.checked }))}
+                    />
+                    <span>
+                      <span className="block text-sm font-medium text-zinc-100">Open PDF after save</span>
+                      <span className="block text-xs text-zinc-400">Automatically open generated PDFs after clicking Save PDF.</span>
+                    </span>
+                  </label>
                 </div>
               </>
             ) : activeSection === 'proposal' ? (

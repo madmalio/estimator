@@ -14,6 +14,15 @@ type ManualQuoteService struct {
 	db *gorm.DB
 }
 
+func normalizeProposalStatus(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "draft", "sent", "approved", "declined", "closed":
+		return strings.ToLower(strings.TrimSpace(status))
+	default:
+		return "draft"
+	}
+}
+
 func NewManualQuoteService() *ManualQuoteService {
 	return &ManualQuoteService{
 		db: database.GetDB(),
@@ -44,6 +53,10 @@ func (s *ManualQuoteService) GetPage(req types.ManualQuotePageRequest) (*types.M
 		Where("customers.archived = ?", false)
 
 	search := strings.TrimSpace(req.Search)
+	status := strings.TrimSpace(strings.ToLower(req.Status))
+	if status != "" && status != "all" {
+		baseQuery = baseQuery.Where("LOWER(manual_quotes.status) = ?", status)
+	}
 	if search != "" {
 		like := "%" + strings.ToLower(search) + "%"
 		baseQuery = baseQuery.Where(
@@ -74,6 +87,10 @@ func (s *ManualQuoteService) GetPage(req types.ManualQuotePageRequest) (*types.M
 			like,
 			like,
 		)
+	}
+
+	if status != "" && status != "all" {
+		listQuery = listQuery.Where("LOWER(manual_quotes.status) = ?", status)
 	}
 
 	if err := listQuery.Order("manual_quotes.sort_order DESC, manual_quotes.quote_date DESC").
@@ -109,6 +126,7 @@ func (s *ManualQuoteService) Create(req types.CreateManualQuoteRequest) (*databa
 	quote := database.ManualQuote{
 		CustomerID:      req.CustomerID,
 		JobName:         req.JobName,
+		Status:          normalizeProposalStatus(req.Status),
 		QuoteDate:       time.Now(),
 		DescriptionBody: req.DescriptionBody,
 		Subtotal:        req.Subtotal,
@@ -149,6 +167,7 @@ func (s *ManualQuoteService) Update(req types.UpdateManualQuoteRequest) (*databa
 
 	quote.CustomerID = req.CustomerID
 	quote.JobName = req.JobName
+	quote.Status = normalizeProposalStatus(req.Status)
 	quote.DescriptionBody = req.DescriptionBody
 	quote.Subtotal = req.Subtotal
 	quote.Tax = req.Tax
@@ -180,6 +199,49 @@ func (s *ManualQuoteService) Delete(id uint) error {
 		}
 		return tx.Delete(&database.ManualQuote{}, id).Error
 	})
+}
+
+func (s *ManualQuoteService) Duplicate(id uint) (*database.ManualQuote, error) {
+	original, err := s.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	lineItems := make([]types.ManualQuoteLineItemRequest, 0, len(original.LineItems))
+	for index, item := range original.LineItems {
+		lineItems = append(lineItems, types.ManualQuoteLineItemRequest{
+			ItemName:    item.ItemName,
+			Description: item.Description,
+			LineTotal:   item.LineTotal,
+			SortOrder:   index,
+		})
+	}
+
+	jobName := strings.TrimSpace(original.JobName)
+	if jobName == "" {
+		jobName = "Proposal"
+	}
+
+	req := types.CreateManualQuoteRequest{
+		CustomerID:      original.CustomerID,
+		JobName:         jobName + " (Copy)",
+		Status:          "draft",
+		DescriptionBody: original.DescriptionBody,
+		LineItems:       lineItems,
+		Subtotal:        original.Subtotal,
+		Tax:             original.Tax,
+		Total:           original.Total,
+		DepositPercent:  original.DepositPercent,
+		DepositAmount:   original.DepositAmount,
+		AmountDue:       original.AmountDue,
+		TermsBlock1:     original.TermsBlock1,
+		TermsBlock2:     original.TermsBlock2,
+		PaymentsNote:    original.PaymentsNote,
+		CreditCardNote:  original.CreditCardNote,
+		SignatureNote:   original.SignatureNote,
+	}
+
+	return s.Create(req)
 }
 
 func (s *ManualQuoteService) replaceLineItems(quoteID uint, items []types.ManualQuoteLineItemRequest) error {

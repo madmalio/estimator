@@ -64,6 +64,7 @@ export namespace database {
 	    phone: string;
 	    email: string;
 	    theme: string;
+	    openPdfAfterSave: boolean;
 	    defaultTermsBlock1: string;
 	    defaultTermsBlock2: string;
 	    defaultTermsBlock3: string;
@@ -84,6 +85,7 @@ export namespace database {
 	        this.phone = source["phone"];
 	        this.email = source["email"];
 	        this.theme = source["theme"];
+	        this.openPdfAfterSave = source["openPdfAfterSave"];
 	        this.defaultTermsBlock1 = source["defaultTermsBlock1"];
 	        this.defaultTermsBlock2 = source["defaultTermsBlock2"];
 	        this.defaultTermsBlock3 = source["defaultTermsBlock3"];
@@ -145,6 +147,7 @@ export namespace database {
 	    customerId: number;
 	    customer?: Customer;
 	    jobName: string;
+	    status: string;
 	    // Go type: time
 	    estimateDate: any;
 	    totalAmount: number;
@@ -166,6 +169,7 @@ export namespace database {
 	        this.customerId = source["customerId"];
 	        this.customer = this.convertValues(source["customer"], Customer);
 	        this.jobName = source["jobName"];
+	        this.status = source["status"];
 	        this.estimateDate = this.convertValues(source["estimateDate"], null);
 	        this.totalAmount = source["totalAmount"];
 	        this.installTotal = source["installTotal"];
@@ -224,6 +228,7 @@ export namespace database {
 	    customerId?: number;
 	    customer?: Customer;
 	    jobName: string;
+	    status: string;
 	    // Go type: time
 	    quoteDate: any;
 	    descriptionBody: string;
@@ -256,6 +261,7 @@ export namespace database {
 	        this.customerId = source["customerId"];
 	        this.customer = this.convertValues(source["customer"], Customer);
 	        this.jobName = source["jobName"];
+	        this.status = source["status"];
 	        this.quoteDate = this.convertValues(source["quoteDate"], null);
 	        this.descriptionBody = source["descriptionBody"];
 	        this.lineItems = this.convertValues(source["lineItems"], ManualQuoteLineItem);
@@ -379,6 +385,7 @@ export namespace types {
 	    jobName: string;
 	    installQty: number;
 	    installRate: number;
+	    status: string;
 	    markupPercent: number;
 	    miscCharge: number;
 	
@@ -392,6 +399,7 @@ export namespace types {
 	        this.jobName = source["jobName"];
 	        this.installQty = source["installQty"];
 	        this.installRate = source["installRate"];
+	        this.status = source["status"];
 	        this.markupPercent = source["markupPercent"];
 	        this.miscCharge = source["miscCharge"];
 	    }
@@ -437,6 +445,7 @@ export namespace types {
 	export class CreateManualQuoteRequest {
 	    customerId?: number;
 	    jobName: string;
+	    status: string;
 	    descriptionBody: string;
 	    lineItems: ManualQuoteLineItemRequest[];
 	    subtotal: number;
@@ -459,6 +468,7 @@ export namespace types {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.customerId = source["customerId"];
 	        this.jobName = source["jobName"];
+	        this.status = source["status"];
 	        this.descriptionBody = source["descriptionBody"];
 	        this.lineItems = this.convertValues(source["lineItems"], ManualQuoteLineItemRequest);
 	        this.subtotal = source["subtotal"];
@@ -582,6 +592,7 @@ export namespace types {
 	    page: number;
 	    pageSize: number;
 	    search: string;
+	    status: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new EstimatePageRequest(source);
@@ -592,6 +603,7 @@ export namespace types {
 	        this.page = source["page"];
 	        this.pageSize = source["pageSize"];
 	        this.search = source["search"];
+	        this.status = source["status"];
 	    }
 	}
 	export class EstimatePageResponse {
@@ -630,11 +642,32 @@ export namespace types {
 		    return a;
 		}
 	}
+	export class GlobalSearchResult {
+	    type: string;
+	    id: number;
+	    title: string;
+	    subtitle: string;
+	    meta: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GlobalSearchResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.subtitle = source["subtitle"];
+	        this.meta = source["meta"];
+	    }
+	}
 	
 	export class ManualQuotePageRequest {
 	    page: number;
 	    pageSize: number;
 	    search: string;
+	    status: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ManualQuotePageRequest(source);
@@ -645,6 +678,7 @@ export namespace types {
 	        this.page = source["page"];
 	        this.pageSize = source["pageSize"];
 	        this.search = source["search"];
+	        this.status = source["status"];
 	    }
 	}
 	export class ManualQuotePageResponse {
@@ -704,6 +738,7 @@ export namespace types {
 	    phone: string;
 	    email: string;
 	    theme: string;
+	    openPdfAfterSave: boolean;
 	    defaultTermsBlock1: string;
 	    defaultTermsBlock2: string;
 	    defaultTermsBlock3: string;
@@ -723,6 +758,7 @@ export namespace types {
 	        this.phone = source["phone"];
 	        this.email = source["email"];
 	        this.theme = source["theme"];
+	        this.openPdfAfterSave = source["openPdfAfterSave"];
 	        this.defaultTermsBlock1 = source["defaultTermsBlock1"];
 	        this.defaultTermsBlock2 = source["defaultTermsBlock2"];
 	        this.defaultTermsBlock3 = source["defaultTermsBlock3"];
@@ -739,6 +775,7 @@ export namespace types {
 	    installTotal: number;
 	    installQty: number;
 	    installRate: number;
+	    status: string;
 	    markupPercent: number;
 	    miscCharge: number;
 	
@@ -755,6 +792,7 @@ export namespace types {
 	        this.installTotal = source["installTotal"];
 	        this.installQty = source["installQty"];
 	        this.installRate = source["installRate"];
+	        this.status = source["status"];
 	        this.markupPercent = source["markupPercent"];
 	        this.miscCharge = source["miscCharge"];
 	    }
@@ -783,6 +821,7 @@ export namespace types {
 	    id: number;
 	    customerId?: number;
 	    jobName: string;
+	    status: string;
 	    descriptionBody: string;
 	    lineItems: ManualQuoteLineItemRequest[];
 	    subtotal: number;
@@ -806,6 +845,7 @@ export namespace types {
 	        this.id = source["id"];
 	        this.customerId = source["customerId"];
 	        this.jobName = source["jobName"];
+	        this.status = source["status"];
 	        this.descriptionBody = source["descriptionBody"];
 	        this.lineItems = this.convertValues(source["lineItems"], ManualQuoteLineItemRequest);
 	        this.subtotal = source["subtotal"];

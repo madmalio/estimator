@@ -63,6 +63,24 @@ func sanitizeFilePart(value string) string {
 	return sanitized
 }
 
+func nextAvailablePDFPath(filePath string) string {
+	if _, err := os.Stat(filePath); errors.Is(err, os.ErrNotExist) {
+		return filePath
+	}
+
+	dir := filepath.Dir(filePath)
+	fileName := filepath.Base(filePath)
+	ext := filepath.Ext(fileName)
+	base := strings.TrimSuffix(fileName, ext)
+
+	for index := 2; ; index++ {
+		candidate := filepath.Join(dir, fmt.Sprintf("%s (%d)%s", base, index, ext))
+		if _, err := os.Stat(candidate); errors.Is(err, os.ErrNotExist) {
+			return candidate
+		}
+	}
+}
+
 func (s *PDFService) resolveChromiumPath() (string, error) {
 	if customPath := strings.TrimSpace(os.Getenv("CABCON_CHROMIUM_PATH")); customPath != "" {
 		if _, err := os.Stat(customPath); err == nil {
@@ -154,13 +172,13 @@ func (s *PDFService) renderHTMLToPDF(html string, filePath string) error {
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			data, _, printErr := page.PrintToPDF().
 				WithPrintBackground(true).
-				WithPreferCSSPageSize(false).
+				WithPreferCSSPageSize(true).
 				WithPaperWidth(8.5).
 				WithPaperHeight(11.0).
-				WithMarginTop(0.35).
-				WithMarginRight(0.35).
-				WithMarginBottom(0.35).
-				WithMarginLeft(0.35).
+				WithMarginTop(0).
+				WithMarginRight(0).
+				WithMarginBottom(0).
+				WithMarginLeft(0).
 				Do(ctx)
 			if printErr != nil {
 				return printErr
@@ -201,7 +219,7 @@ func (s *PDFService) GenerateEstimatePDF(jobID uint, html string) (string, error
 		sanitizeFilePart(customerName),
 		sanitizeFilePart(job.JobName),
 	)
-	filePath := filepath.Join(outputDir, filename)
+	filePath := nextAvailablePDFPath(filepath.Join(outputDir, filename))
 
 	if err := s.renderHTMLToPDF(html, filePath); err != nil {
 		return "", err
@@ -232,7 +250,7 @@ func (s *PDFService) GenerateManualQuotePDF(quoteID uint, html string) (string, 
 		sanitizeFilePart(customerName),
 		sanitizeFilePart(quote.JobName),
 	)
-	filePath := filepath.Join(outputDir, filename)
+	filePath := nextAvailablePDFPath(filepath.Join(outputDir, filename))
 
 	if err := s.renderHTMLToPDF(html, filePath); err != nil {
 		return "", err

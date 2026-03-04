@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Input } from './Input';
 import type { Customer } from '../../types';
 
-const RECENT_CUSTOMERS_STORAGE_KEY = 'cabinet-estimator:recent-customers';
+const RECENT_CUSTOMERS_STORAGE_KEY = 'cabcon:recent-customers';
+const LEGACY_RECENT_CUSTOMERS_STORAGE_KEY = 'cabinet-estimator:recent-customers';
 
 interface CustomerComboboxProps {
   label?: string;
@@ -34,7 +35,14 @@ export function CustomerCombobox({
 
   const recentCustomerIds = useMemo(() => {
     try {
-      const raw = localStorage.getItem(RECENT_CUSTOMERS_STORAGE_KEY);
+      let raw = localStorage.getItem(RECENT_CUSTOMERS_STORAGE_KEY);
+      if (!raw) {
+        const legacy = localStorage.getItem(LEGACY_RECENT_CUSTOMERS_STORAGE_KEY);
+        if (legacy) {
+          raw = legacy;
+          localStorage.setItem(RECENT_CUSTOMERS_STORAGE_KEY, legacy);
+        }
+      }
       if (!raw) return [] as number[];
       const parsed = JSON.parse(raw) as unknown;
       if (!Array.isArray(parsed)) return [] as number[];
