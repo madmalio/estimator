@@ -229,7 +229,7 @@ useEffect(() => {
 
 const handleCreateDraftEstimate = async (customerIdOverride?: number, jobNameOverride?: string) => {
     const targetCustomerId = customerIdOverride ?? 0;
-    const targetJobName = (jobNameOverride ?? 'New Custom Cabinet').trim() || 'New Custom Cabinet';
+    const targetJobName = (jobNameOverride ?? '').trim();
 
     try {
       setSelectedCustomerId(targetCustomerId);
@@ -285,7 +285,7 @@ const handleCreateDraftEstimate = async (customerIdOverride?: number, jobNameOve
     }
 
     setLastHandledQuickCreateToken(quickCreateForCustomer.token);
-    void handleCreateDraftEstimate(quickCreateForCustomer.customerId, 'New Custom Cabinet');
+    void handleCreateDraftEstimate(quickCreateForCustomer.customerId);
     onQuickCreateHandled?.();
   }, [quickCreateForCustomer, loading, lastHandledQuickCreateToken, onQuickCreateHandled]);
 
@@ -321,6 +321,10 @@ const handleCreateDraftEstimate = async (customerIdOverride?: number, jobNameOve
 
   const handleSaveEstimate = async (showSuccessMessage = true) => {
     if (!currentEstimate) return;
+    if (!jobName.trim()) {
+      showToast('Job name is required', 'error');
+      return;
+    }
 
     try {
       const updatedEstimate = await UpdateEstimate({
@@ -725,7 +729,7 @@ const handleDuplicateEstimate = async (jobId: number) => {
                         onClick={() => loadEstimate(estimate.jobId)}
                       >
                       <td className="px-4 py-3 text-sm font-medium text-zinc-100">
-                        {estimate.jobName}
+                        {estimate.jobName || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm text-zinc-400">
                         {estimate.customer?.name || '-'}

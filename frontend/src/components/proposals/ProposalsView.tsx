@@ -173,7 +173,7 @@ const proposalStatuses = [
 
 const defaultForm: ManualQuoteFormState = {
   customerId: 0,
-  jobName: "New Proposal",
+  jobName: "",
   status: "draft",
   lineItems: [],
   notes: [],
@@ -670,7 +670,7 @@ export function ProposalsView({
       const created = await CreateManualQuote(
         new wailsTypes.CreateManualQuoteRequest({
           customerId: customerId || undefined,
-          jobName: initialJobName || defaultForm.jobName,
+          jobName: initialJobName || "",
           status: defaultForm.status,
           descriptionBody: stringifyQuoteMeta(
             defaultForm.notes,
@@ -1060,7 +1060,7 @@ export function ProposalsView({
     }
 
     setLastHandledQuickCreateToken(quickCreateForCustomer.token);
-    void handleCreateQuote(quickCreateForCustomer.customerId, `New Proposal`);
+    void handleCreateQuote(quickCreateForCustomer.customerId);
     onQuickCreateHandled?.();
   }, [
     quickCreateForCustomer,
