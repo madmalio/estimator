@@ -15,6 +15,7 @@ import { DragHandle } from "../dnd/DragHandle";
 import { Button } from "../ui/Button";
 import { Card, CardContent, CardHeader } from "../ui/Card";
 import { Input } from "../ui/Input";
+import { EditableNumberInput } from "../ui/EditableNumberInput";
 import { Select } from "../ui/Select";
 import { StatusBadge } from "../ui/StatusBadge";
 import { CustomerCombobox } from "../ui/CustomerCombobox";
@@ -1917,21 +1918,16 @@ export function ProposalsView({
                     }
                     placeholder="e.g., 75% Deposit"
                   />
-                  <Input
+                  <EditableNumberInput
                     label="Deposit %"
-                    type="number"
-                    step="1"
-                    value={
-                      form.depositPercent === 0
-                        ? ""
-                        : form.depositPercent.toFixed(0)
-                    }
+                    value={form.depositPercent}
+                    precision={0}
+                    round
                     onKeyDown={preventNumberArrowAdjust}
-                    onChange={(e) =>
+                    onChange={(value) =>
                       setForm((prev) => ({
                         ...prev,
-                        depositPercent:
-                          Math.round(parseFloat(e.target.value)) || 0,
+                        depositPercent: value,
                       }))
                     }
                   />
@@ -1956,23 +1952,16 @@ export function ProposalsView({
                         </button>
                       )}
                     </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={
-                        form.depositAmount === 0
-                          ? ""
-                          : form.depositAmount.toFixed(2)
-                      }
+                    <EditableNumberInput
+                      value={form.depositAmount}
                       onKeyDown={preventNumberArrowAdjust}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setForm((prev) => ({
                           ...prev,
-                          depositAmount: parseFloat(e.target.value) || 0,
+                          depositAmount: value,
                           depositAmountOverride: true,
                         }))
                       }
-                      className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
                     />
                   </div>
                   <div className="space-y-1">
@@ -1996,21 +1985,16 @@ export function ProposalsView({
                         </button>
                       )}
                     </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={
-                        form.amountDue === 0 ? "" : form.amountDue.toFixed(2)
-                      }
+                    <EditableNumberInput
+                      value={form.amountDue}
                       onKeyDown={preventNumberArrowAdjust}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setForm((prev) => ({
                           ...prev,
-                          amountDue: parseFloat(e.target.value) || 0,
+                          amountDue: value,
                           amountDueOverride: true,
                         }))
                       }
-                      className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
                     />
                   </div>
                 </CardContent>
