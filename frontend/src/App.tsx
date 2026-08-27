@@ -186,13 +186,10 @@ const openEstimateStatus = (status: string) => {
 {activeView === 'dashboard' && (
           <DashboardView
             onOpenProposals={() => setActiveView('manualquotes')}
-            onOpenEstimates={() => setActiveView('estimates')}
             onOpenInvoices={() => setActiveView('invoices')}
             onOpenProposal={openProposalRecordById}
-            onOpenEstimate={openEstimateRecordById}
             onOpenInvoice={openInvoiceRecordById}
             onOpenProposalStatus={openProposalStatus}
-            onOpenEstimateStatus={openEstimateStatus}
             onOpenInvoiceStatus={openInvoiceStatus}
           />
         )}

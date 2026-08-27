@@ -1954,7 +1954,7 @@ export function InvoicesView({
                 <h3 className="font-semibold text-zinc-100">Payments</h3>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-[140px_1fr_160px_1fr] gap-2 items-end">
+                <div className="grid grid-cols-[140px_1fr_160px] gap-2 items-end">
                   <div>
                     <label className="block text-sm font-medium text-zinc-300 mb-1">
                       Amount
@@ -2000,61 +2000,63 @@ export function InvoicesView({
                       options={paymentMethodOptions}
                     />
                   </div>
-                  <div>
-                    {draftPayment.method === "credit_card" && (
-                      <>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Card Type
-                        </label>
-                        <Select
-                          value={draftPayment.cardType}
-                          onChange={(value) =>
-                            setDraftPayment((prev) => ({
-                              ...prev,
-                              cardType: value,
-                            }))
-                          }
-                          options={cardTypeOptions}
-                        />
-                        <div className="mt-2">
-                          <label className="block text-sm font-medium text-zinc-300 mb-1">
-                            Last 4
-                          </label>
-                          <Input
-                            inputMode="numeric"
-                            maxLength={4}
-                            value={draftPayment.cardLast4}
-                            onChange={(e) =>
-                              setDraftPayment((prev) => ({
-                                ...prev,
-                                cardLast4: sanitizeCardLast4(e.target.value),
-                              }))
-                            }
-                            placeholder="4242"
-                            className="w-24"
-                          />
-                        </div>
-                      </>
-                    )}
-                    {draftPayment.method === "check" && (
-                      <>
-                        <label className="block text-sm font-medium text-zinc-300 mb-1">
-                          Check Number
-                        </label>
-                        <Input
-                          value={draftPayment.checkNumber}
-                          onChange={(e) =>
-                            setDraftPayment((prev) => ({
-                              ...prev,
-                              checkNumber: e.target.value,
-                            }))
-                          }
-                          placeholder="e.g., 1042"
-                        />
-                      </>
-                    )}
-                  </div>
                 </div>
+
+                {draftPayment.method === "credit_card" && (
+                  <div className="grid grid-cols-[1fr_120px] gap-2 items-end max-w-md">
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-300 mb-1">
+                        Card Type
+                      </label>
+                      <Select
+                        value={draftPayment.cardType}
+                        onChange={(value) =>
+                          setDraftPayment((prev) => ({
+                            ...prev,
+                            cardType: value,
+                          }))
+                        }
+                        options={cardTypeOptions}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-300 mb-1">
+                        Last 4
+                      </label>
+                      <Input
+                        inputMode="numeric"
+                        maxLength={4}
+                        value={draftPayment.cardLast4}
+                        onChange={(e) =>
+                          setDraftPayment((prev) => ({
+                            ...prev,
+                            cardLast4: sanitizeCardLast4(e.target.value),
+                          }))
+                        }
+                        placeholder="4242"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {draftPayment.method === "check" && (
+                  <div className="max-w-md">
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">
+                      Check Number
+                    </label>
+                    <Input
+                      value={draftPayment.checkNumber}
+                      onChange={(e) =>
+                        setDraftPayment((prev) => ({
+                          ...prev,
+                          checkNumber: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g., 1042"
+                    />
+                  </div>
+                )}
+
                 <div className="flex justify-end">
                   <Button onClick={handleAddPayment}>Add Payment</Button>
                 </div>
