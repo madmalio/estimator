@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Building2, FileText, Save, Percent, Plus, Trash2, Check, SunMoon, Sun, Moon, Monitor, Database, Download, Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Input } from '../ui/Input';
+import { EditableNumberInput } from '../ui/EditableNumberInput';
 import { Button } from '../ui/Button';
 import { useToast } from '../ui/Toast';
 import { Modal } from '../ui/Modal';
@@ -1162,14 +1163,10 @@ export function SettingsView() {
             onChange={(e) => setNewTaxRate((prev) => ({ ...prev, name: e.target.value }))}
             placeholder="e.g., Sales Tax, GST"
           />
-          <Input
+          <EditableNumberInput
             label="Rate (%)"
-            type="number"
-            step="0.01"
-            value={newTaxRate.rate || ''}
-            onChange={(e) =>
-              setNewTaxRate((prev) => ({ ...prev, rate: parseFloat(e.target.value) || 0 }))
-            }
+            value={newTaxRate.rate}
+            onChange={(rate) => setNewTaxRate((prev) => ({ ...prev, rate }))}
           />
           <label className="flex items-center gap-2 text-sm text-zinc-300">
             <input
