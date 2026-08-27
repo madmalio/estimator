@@ -133,36 +133,38 @@ export function CustomerCombobox({
       />
 
       {isOpen && !disabled && (
-        <div className="absolute z-30 mt-1 w-full max-h-56 overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-900 shadow-lg">
-          {filteredCustomers.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-zinc-400">No customers found</p>
-          ) : (
-            filteredCustomers.map((customer) => (
-              <button
-                key={customer.id}
-                type="button"
-                className="w-full px-3 py-2 text-left hover:bg-zinc-800"
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  onChange(customer.id);
-                  rememberRecentCustomer(customer.id);
-                  setQuery(customer.name);
-                  setIsOpen(false);
-                }}
-              >
-                <p className="text-sm text-zinc-100">{customer.name}</p>
-                {(customer.phone || customer.email) && (
-                  <p className="text-xs text-zinc-400">
-                    {customer.phone || ''}
-                    {customer.phone && customer.email ? ' | ' : ''}
-                    {customer.email || ''}
-                  </p>
-                )}
-              </button>
-            ))
-          )}
+        <div className="absolute z-30 mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 shadow-lg overflow-hidden">
+          <div className="max-h-52 overflow-y-auto">
+            {filteredCustomers.length === 0 ? (
+              <p className="px-3 py-2 text-sm text-zinc-400">No customers found</p>
+            ) : (
+              filteredCustomers.map((customer) => (
+                <button
+                  key={customer.id}
+                  type="button"
+                  className="w-full px-3 py-2 text-left hover:bg-zinc-800"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    onChange(customer.id);
+                    rememberRecentCustomer(customer.id);
+                    setQuery(customer.name);
+                    setIsOpen(false);
+                  }}
+                >
+                  <p className="text-sm text-zinc-100">{customer.name}</p>
+                  {(customer.phone || customer.email) && (
+                    <p className="text-xs text-zinc-400">
+                      {customer.phone || ''}
+                      {customer.phone && customer.email ? ' | ' : ''}
+                      {customer.email || ''}
+                    </p>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
           {onAddNewCustomer && (
-            <div className="border-t border-zinc-700">
+            <div className="border-t border-zinc-700 bg-zinc-900">
               <button
                 type="button"
                 className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-zinc-200 hover:bg-zinc-800"
