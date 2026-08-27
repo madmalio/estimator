@@ -151,17 +151,19 @@ type CustomerPageRequest struct {
 }
 
 type EstimatePageRequest struct {
-	Page     int    `json:"page"`
-	PageSize int    `json:"pageSize"`
-	Search   string `json:"search"`
-	Status   string `json:"status"`
+	Page         int    `json:"page"`
+	PageSize     int    `json:"pageSize"`
+	Search       string `json:"search"`
+	Status       string `json:"status"`
+	ShowArchived bool   `json:"showArchived"`
 }
 
 type ManualQuotePageRequest struct {
-	Page     int    `json:"page"`
-	PageSize int    `json:"pageSize"`
-	Search   string `json:"search"`
-	Status   string `json:"status"`
+	Page         int    `json:"page"`
+	PageSize     int    `json:"pageSize"`
+	Search       string `json:"search"`
+	Status       string `json:"status"`
+	ShowArchived bool   `json:"showArchived"`
 }
 
 type CustomerPageResponse struct {

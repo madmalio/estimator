@@ -33,8 +33,9 @@ export interface EstimateJob {
   installTotal: number;
   installQty: number;
   installRate: number;
-  markupPercent: number;
+markupPercent: number;
   miscCharge: number;
+  archived?: boolean;
   sortOrder: number;
   lineItems?: EstimateLineItem[];
 }
@@ -172,6 +173,7 @@ export interface ManualQuote {
   paymentsNote: string;
   creditCardNote: string;
   signatureNote: string;
+  archived?: boolean;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;

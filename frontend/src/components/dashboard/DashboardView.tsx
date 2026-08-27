@@ -6,8 +6,8 @@ import { StatusBadge } from '../ui/StatusBadge';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import type { EstimateJob, ManualQuote } from '../../types';
 import {
-  GetAllEstimates,
-  GetAllManualQuotes,
+  GetEstimatesPage,
+  GetManualQuotesPage,
   GetCustomersPage,
 } from '../../../wailsjs/go/main/App';
 
@@ -46,11 +46,11 @@ export function DashboardView({
 
     const load = async () => {
       try {
-        const [activeCustomersPage, archivedCustomersPage, proposalData, estimateData] = await Promise.all([
+        const [activeCustomersPage, archivedCustomersPage, proposalPage, estimatePage] = await Promise.all([
           GetCustomersPage({ page: 1, pageSize: 1, search: '', showArchived: false }),
           GetCustomersPage({ page: 1, pageSize: 1, search: '', showArchived: true }),
-          GetAllManualQuotes(),
-          GetAllEstimates(),
+          GetManualQuotesPage({ page: 1, pageSize: 1000, search: '', status: 'all', showArchived: false }),
+          GetEstimatesPage({ page: 1, pageSize: 1000, search: '', status: 'all', showArchived: false }),
         ]);
 
         if (cancelled) {
@@ -59,8 +59,8 @@ export function DashboardView({
 
         setActiveCustomerTotal(activeCustomersPage?.total || 0);
         setArchivedCustomerTotal(archivedCustomersPage?.total || 0);
-        setProposals((proposalData || []) as ManualQuote[]);
-        setEstimates((estimateData || []) as EstimateJob[]);
+        setProposals((proposalPage?.items || []) as ManualQuote[]);
+        setEstimates((estimatePage?.items || []) as EstimateJob[]);
       } catch (error) {
         if (!cancelled) {
           console.error('Failed to load dashboard data:', error);

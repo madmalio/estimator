@@ -50,7 +50,11 @@ func (s *ManualQuoteService) GetPage(req types.ManualQuotePageRequest) (*types.M
 
 	baseQuery := s.db.Model(&database.ManualQuote{}).
 		Joins("LEFT JOIN customers ON customers.id = manual_quotes.customer_id").
-		Where("customers.archived = ?", false)
+		Where("manual_quotes.archived = ?", req.ShowArchived)
+
+	if !req.ShowArchived {
+		baseQuery = baseQuery.Where("customers.archived = ?", false)
+	}
 
 	search := strings.TrimSpace(req.Search)
 	status := strings.TrimSpace(strings.ToLower(req.Status))
@@ -76,7 +80,11 @@ func (s *ManualQuoteService) GetPage(req types.ManualQuotePageRequest) (*types.M
 	var quotes []database.ManualQuote
 	listQuery := s.db.Preload("Customer").
 		Joins("LEFT JOIN customers ON customers.id = manual_quotes.customer_id").
-		Where("customers.archived = ?", false)
+		Where("manual_quotes.archived = ?", req.ShowArchived)
+
+	if !req.ShowArchived {
+		listQuery = listQuery.Where("customers.archived = ?", false)
+	}
 
 	if search != "" {
 		like := "%" + strings.ToLower(search) + "%"
@@ -190,6 +198,15 @@ func (s *ManualQuoteService) Update(req types.UpdateManualQuoteRequest) (*databa
 	}
 
 	return s.GetByID(quote.ID)
+}
+
+func (s *ManualQuoteService) UpdateArchived(id uint, archived bool) (*database.ManualQuote, error) {
+	if err := s.db.Model(&database.ManualQuote{}).
+		Where("id = ?", id).
+		Update("archived", archived).Error; err != nil {
+		return nil, err
+	}
+	return s.GetByID(id)
 }
 
 func (s *ManualQuoteService) Delete(id uint) error {

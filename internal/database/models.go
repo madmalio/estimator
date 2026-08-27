@@ -39,6 +39,7 @@ type EstimateJob struct {
 	InstallRate   float64            `gorm:"default:0" json:"installRate"`
 	MarkupPercent float64            `json:"markupPercent"`
 	MiscCharge    float64            `json:"miscCharge"`
+	Archived      bool               `gorm:"default:false;index" json:"archived"`
 	SortOrder     int                `gorm:"default:0" json:"sortOrder"`
 	LineItems     []EstimateLineItem `gorm:"foreignKey:JobID" json:"lineItems,omitempty"`
 }
@@ -101,6 +102,7 @@ type ManualQuote struct {
 	PaymentsNote    string                `gorm:"type:text" json:"paymentsNote"`
 	CreditCardNote  string                `gorm:"type:text" json:"creditCardNote"`
 	SignatureNote   string                `gorm:"type:text" json:"signatureNote"`
+	Archived        bool                  `gorm:"default:false;index" json:"archived"`
 	SortOrder       int                   `gorm:"default:0" json:"sortOrder"`
 	CreatedAt       time.Time             `json:"createdAt"`
 	UpdatedAt       time.Time             `json:"updatedAt"`

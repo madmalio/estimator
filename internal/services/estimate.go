@@ -52,7 +52,11 @@ func (s *EstimateService) GetPage(req types.EstimatePageRequest) (*types.Estimat
 
 	baseQuery := s.db.Model(&database.EstimateJob{}).
 		Joins("LEFT JOIN customers ON customers.id = estimate_jobs.customer_id").
-		Where("customers.archived = ?", false)
+		Where("estimate_jobs.archived = ?", req.ShowArchived)
+
+	if !req.ShowArchived {
+		baseQuery = baseQuery.Where("customers.archived = ?", false)
+	}
 
 	search := strings.TrimSpace(req.Search)
 	status := strings.TrimSpace(strings.ToLower(req.Status))
@@ -80,7 +84,11 @@ func (s *EstimateService) GetPage(req types.EstimatePageRequest) (*types.Estimat
 			return db.Order("sort_order ASC")
 		}).
 		Joins("LEFT JOIN customers ON customers.id = estimate_jobs.customer_id").
-		Where("customers.archived = ?", false)
+		Where("estimate_jobs.archived = ?", req.ShowArchived)
+
+	if !req.ShowArchived {
+		listQuery = listQuery.Where("customers.archived = ?", false)
+	}
 
 	if search != "" {
 		like := "%" + strings.ToLower(search) + "%"
@@ -183,6 +191,15 @@ func (s *EstimateService) Update(req types.UpdateEstimateJobRequest) (*database.
 		return nil, err
 	}
 	return s.GetByID(job.JobID)
+}
+
+func (s *EstimateService) UpdateArchived(jobID uint, archived bool) (*database.EstimateJob, error) {
+	if err := s.db.Model(&database.EstimateJob{}).
+		Where("job_id = ?", jobID).
+		Update("archived", archived).Error; err != nil {
+		return nil, err
+	}
+	return s.GetByID(jobID)
 }
 
 func (s *EstimateService) Delete(id uint) error {

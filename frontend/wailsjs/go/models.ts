@@ -156,6 +156,7 @@ export namespace database {
 	    installRate: number;
 	    markupPercent: number;
 	    miscCharge: number;
+	    archived: boolean;
 	    sortOrder: number;
 	    lineItems?: EstimateLineItem[];
 	
@@ -177,6 +178,7 @@ export namespace database {
 	        this.installRate = source["installRate"];
 	        this.markupPercent = source["markupPercent"];
 	        this.miscCharge = source["miscCharge"];
+	        this.archived = source["archived"];
 	        this.sortOrder = source["sortOrder"];
 	        this.lineItems = this.convertValues(source["lineItems"], EstimateLineItem);
 	    }
@@ -244,6 +246,7 @@ export namespace database {
 	    paymentsNote: string;
 	    creditCardNote: string;
 	    signatureNote: string;
+	    archived: boolean;
 	    sortOrder: number;
 	    // Go type: time
 	    createdAt: any;
@@ -276,6 +279,7 @@ export namespace database {
 	        this.paymentsNote = source["paymentsNote"];
 	        this.creditCardNote = source["creditCardNote"];
 	        this.signatureNote = source["signatureNote"];
+	        this.archived = source["archived"];
 	        this.sortOrder = source["sortOrder"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
@@ -593,6 +597,7 @@ export namespace types {
 	    pageSize: number;
 	    search: string;
 	    status: string;
+	    showArchived: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new EstimatePageRequest(source);
@@ -604,6 +609,7 @@ export namespace types {
 	        this.pageSize = source["pageSize"];
 	        this.search = source["search"];
 	        this.status = source["status"];
+	        this.showArchived = source["showArchived"];
 	    }
 	}
 	export class EstimatePageResponse {
@@ -668,6 +674,7 @@ export namespace types {
 	    pageSize: number;
 	    search: string;
 	    status: string;
+	    showArchived: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ManualQuotePageRequest(source);
@@ -679,6 +686,7 @@ export namespace types {
 	        this.pageSize = source["pageSize"];
 	        this.search = source["search"];
 	        this.status = source["status"];
+	        this.showArchived = source["showArchived"];
 	    }
 	}
 	export class ManualQuotePageResponse {

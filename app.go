@@ -166,6 +166,10 @@ func (a *App) DeleteEstimate(id uint) error {
 	return a.estimateService.Delete(id)
 }
 
+func (a *App) UpdateEstimateArchived(jobID uint, archived bool) (*database.EstimateJob, error) {
+	return a.estimateService.UpdateArchived(jobID, archived)
+}
+
 func (a *App) DuplicateEstimate(id uint) (*database.EstimateJob, error) {
 	return a.estimateService.Duplicate(id)
 }
@@ -214,6 +218,10 @@ func (a *App) UpdateManualQuote(req types.UpdateManualQuoteRequest) (*database.M
 
 func (a *App) DeleteManualQuote(id uint) error {
 	return a.manualQuoteService.Delete(id)
+}
+
+func (a *App) UpdateManualQuoteArchived(id uint, archived bool) (*database.ManualQuote, error) {
+	return a.manualQuoteService.UpdateArchived(id, archived)
 }
 
 func (a *App) DuplicateManualQuote(id uint) (*database.ManualQuote, error) {

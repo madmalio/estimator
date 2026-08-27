@@ -89,6 +89,8 @@ export function UpdateCustomer(arg1:number,arg2:types.CreateCustomerRequest):Pro
 
 export function UpdateEstimate(arg1:types.UpdateEstimateJobRequest):Promise<database.EstimateJob>;
 
+export function UpdateEstimateArchived(arg1:number,arg2:boolean):Promise<database.EstimateJob>;
+
 export function UpdateEstimateSortOrder(arg1:Array<types.SortOrderUpdate>):Promise<void>;
 
 export function UpdateLineItem(arg1:types.UpdateLineItemRequest):Promise<database.EstimateLineItem>;
@@ -96,6 +98,8 @@ export function UpdateLineItem(arg1:types.UpdateLineItemRequest):Promise<databas
 export function UpdateLineItemSortOrder(arg1:Array<types.SortOrderUpdate>):Promise<void>;
 
 export function UpdateManualQuote(arg1:types.UpdateManualQuoteRequest):Promise<database.ManualQuote>;
+
+export function UpdateManualQuoteArchived(arg1:number,arg2:boolean):Promise<database.ManualQuote>;
 
 export function UpdatePriceListItem(arg1:number,arg2:types.CreatePriceListItemRequest):Promise<database.PriceListItem>;
 

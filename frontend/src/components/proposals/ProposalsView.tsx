@@ -9,6 +9,9 @@ import {
   Printer,
   FileText,
   Copy,
+  Archive,
+  ArchiveRestore,
+  MoreVertical,
 } from "lucide-react";
 import { SortableList } from "../dnd/SortableList";
 import { DragHandle } from "../dnd/DragHandle";
@@ -20,6 +23,7 @@ import { Select } from "../ui/Select";
 import { StatusBadge } from "../ui/StatusBadge";
 import { CustomerCombobox } from "../ui/CustomerCombobox";
 import { Modal } from "../ui/Modal";
+import { RowActionMenu } from "../ui/RowActionMenu";
 import { useToast } from "../ui/Toast";
 import { formatCurrency, formatDate } from "../../lib/utils";
 import { buildPrintDocumentHtml } from "../../lib/printHtml";
@@ -43,6 +47,7 @@ import {
   UpdateManualQuote,
   DeleteManualQuote,
   DuplicateManualQuote,
+  UpdateManualQuoteArchived,
   GetAllTaxRates,
   GetAllEstimates,
   GenerateProposalPDF,
@@ -442,7 +447,13 @@ export function ProposalsView({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showArchived, setShowArchived] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [quoteActionMenu, setQuoteActionMenu] = useState<{
+    quoteId: number;
+    top: number;
+    left: number;
+  } | null>(null);
   const [lastHandledQuickCreateToken, setLastHandledQuickCreateToken] =
     useState<number | null>(null);
   const [lastHandledOpenToken, setLastHandledOpenToken] = useState<
@@ -485,6 +496,9 @@ export function ProposalsView({
 
     const customerName = selectedCustomer.name.trim().toLowerCase();
     return estimates.filter((estimate) => {
+      if (estimate.archived) {
+        return false;
+      }
       const estimateCustomerName = estimate.customer?.name
         ?.trim()
         .toLowerCase();
@@ -529,7 +543,7 @@ export function ProposalsView({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, pageSize]);
+  }, [searchTerm, statusFilter, showArchived, pageSize]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -609,6 +623,7 @@ export function ProposalsView({
     search = searchTerm,
     size = pageSize,
     status = statusFilter,
+    archived = showArchived,
   ) => {
     try {
       const response = await GetManualQuotesPage({
@@ -616,6 +631,7 @@ export function ProposalsView({
         pageSize: size,
         search,
         status,
+        showArchived: archived,
       });
       setQuotes((response?.items || []) as ManualQuote[]);
       setTotalQuotes(response?.total || 0);
@@ -639,7 +655,7 @@ export function ProposalsView({
       return;
     }
     void fetchQuotesPage();
-  }, [currentPage, searchTerm, statusFilter, viewMode, pageSize]);
+  }, [currentPage, searchTerm, statusFilter, showArchived, viewMode, pageSize]);
 
   const handleCreateQuote = async (
     customerId?: number,
@@ -1103,6 +1119,18 @@ export function ProposalsView({
     }
   };
 
+  const handleArchiveToggle = async (quote: ManualQuote, archive: boolean) => {
+    try {
+      await UpdateManualQuoteArchived(quote.id, archive);
+      setQuoteActionMenu(null);
+      await fetchQuotesPage();
+      showToast(archive ? "Proposal archived" : "Proposal restored", "success");
+    } catch (error) {
+      console.error("Failed to update archive status:", error);
+      showToast("Failed to update archive status", "error");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1141,13 +1169,32 @@ export function ProposalsView({
           />
         </div>
 
+        <div className="flex items-center gap-2">
+          <Button
+            variant={!showArchived ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => setShowArchived(false)}
+          >
+            Active
+          </Button>
+          <Button
+            variant={showArchived ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => setShowArchived(true)}
+          >
+            Archived
+          </Button>
+        </div>
+
         {totalQuotes === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-zinc-400">
                 {searchTerm.trim()
                   ? "No proposals match your search."
-                  : "No proposals yet. Create one to start building proposal-style quotes."}
+                  : showArchived
+                    ? "No archived proposals yet."
+                    : "No proposals yet. Create one to start building proposal-style quotes."}
               </p>
             </CardContent>
           </Card>
@@ -1233,10 +1280,20 @@ export function ProposalsView({
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            openDeleteModal(quote);
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setQuoteActionMenu((prev) =>
+                              prev?.quoteId === quote.id
+                                ? null
+                                : {
+                                    quoteId: quote.id,
+                                    top: rect.bottom + 4,
+                                    left: rect.right - 176,
+                                  }
+                            );
                           }}
+                          title="More actions"
                         >
-                          <Trash2 size={14} className="text-red-500" />
+                          <MoreVertical size={14} className="text-zinc-400" />
                         </Button>
                       </td>
                     </tr>
@@ -1293,6 +1350,42 @@ export function ProposalsView({
             </div>
           </Card>
         )}
+
+        {quoteActionMenu && (() => {
+          const menuQuote = quotes.find(
+            (quote) => quote.id === quoteActionMenu.quoteId,
+          );
+          if (!menuQuote) return null;
+
+          return (
+            <RowActionMenu
+              top={quoteActionMenu.top}
+              left={quoteActionMenu.left}
+              onClose={() => setQuoteActionMenu(null)}
+              items={[
+                {
+                  label: menuQuote.archived ? "Restore" : "Archive",
+                  icon: menuQuote.archived ? (
+                    <ArchiveRestore size={14} />
+                  ) : (
+                    <Archive size={14} />
+                  ),
+                  onClick: () =>
+                    void handleArchiveToggle(
+                      menuQuote,
+                      !Boolean(menuQuote.archived),
+                    ),
+                },
+                {
+                  label: "Delete",
+                  icon: <Trash2 size={14} />,
+                  danger: true,
+                  onClick: () => openDeleteModal(menuQuote),
+                },
+              ]}
+            />
+          );
+        })()}
 
         <Modal
           isOpen={isDeleteModalOpen}

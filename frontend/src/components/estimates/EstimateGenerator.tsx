@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Printer, Save, ChevronLeft, Trash2, FileText, Copy } from 'lucide-react';
+import { Plus, Printer, Save, ChevronLeft, Trash2, FileText, Copy, Archive, ArchiveRestore, MoreVertical } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
@@ -7,6 +7,7 @@ import { StatusBadge } from '../ui/StatusBadge';
 import { CustomerCombobox } from '../ui/CustomerCombobox';
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Modal } from '../ui/Modal';
+import { RowActionMenu } from '../ui/RowActionMenu';
 import { useToast } from '../ui/Toast';
 import { LineItemTable } from './LineItemTable';
 import { TotalsCard } from './TotalsCard';
@@ -30,6 +31,7 @@ import {
   UpdateEstimate,
   DeleteEstimate,
   DuplicateEstimate,
+  UpdateEstimateArchived,
   AddLineItem,
   DeleteLineItem,
   UpdateLineItem,
@@ -82,9 +84,15 @@ export function EstimateGenerator({
   const [currentEstimate, setCurrentEstimate] = useState<EstimateJob | null>(null);
   const [estimateToDelete, setEstimateToDelete] = useState<EstimateJob | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showArchived, setShowArchived] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [estimateActionMenu, setEstimateActionMenu] = useState<{
+    jobId: number;
+    top: number;
+    left: number;
+  } | null>(null);
   const [lastHandledQuickCreateToken, setLastHandledQuickCreateToken] = useState<number | null>(null);
   const [lastHandledOpenToken, setLastHandledOpenToken] = useState<number | null>(null);
   const [lastHandledStatusToken, setLastHandledStatusToken] = useState<number | null>(null);
@@ -127,9 +135,9 @@ export function EstimateGenerator({
     }
   };
 
-  const fetchEstimatesPage = async (page = currentPage, search = searchTerm, size = pageSize, status = statusFilter) => {
+const fetchEstimatesPage = async (page = currentPage, search = searchTerm, size = pageSize, status = statusFilter, archived = showArchived) => {
     try {
-      const response = await GetEstimatesPage({ page, pageSize: size, search, status });
+      const response = await GetEstimatesPage({ page, pageSize: size, search, status, showArchived: archived });
       setEstimates(response?.items || []);
       setTotalEstimates(response?.total || 0);
     } catch (error) {
@@ -151,7 +159,7 @@ export function EstimateGenerator({
       return;
     }
     void fetchEstimatesPage();
-  }, [currentPage, searchTerm, statusFilter, viewMode, pageSize]);
+  }, [currentPage, searchTerm, statusFilter, showArchived, viewMode, pageSize]);
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
   const categoryItems = selectedCategory?.items || [];
@@ -176,9 +184,9 @@ export function EstimateGenerator({
 
   const totalPages = Math.max(1, Math.ceil(totalEstimates / pageSize));
 
-  useEffect(() => {
+useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, pageSize]);
+  }, [searchTerm, statusFilter, showArchived, pageSize]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -344,7 +352,7 @@ export function EstimateGenerator({
     setIsDeleteModalOpen(true);
   };
 
-  const handleDuplicateEstimate = async (jobId: number) => {
+const handleDuplicateEstimate = async (jobId: number) => {
     try {
       const duplicated = await DuplicateEstimate(jobId);
       const nextEstimate = (duplicated as EstimateJob) || null;
@@ -356,6 +364,18 @@ export function EstimateGenerator({
     } catch (error) {
       console.error('Failed to duplicate custom cabinet:', error);
       showToast('Failed to duplicate custom cabinet', 'error');
+    }
+  };
+
+  const handleArchiveToggle = async (estimate: EstimateJob, archive: boolean) => {
+    try {
+      await UpdateEstimateArchived(estimate.jobId, archive);
+      setEstimateActionMenu(null);
+      await fetchEstimatesPage();
+      showToast(archive ? 'Custom cabinet archived' : 'Custom cabinet restored', 'success');
+    } catch (error) {
+      console.error('Failed to update archive status:', error);
+      showToast('Failed to update archive status', 'error');
     }
   };
 
@@ -585,7 +605,7 @@ export function EstimateGenerator({
         </Button>
       </div>
 
-      <div className="grid grid-cols-[1fr_180px] gap-2">
+<div className="grid grid-cols-[1fr_180px] gap-2">
         <Input
           placeholder="Search custom cabinets by job, customer, or date"
           value={searchTerm}
@@ -604,13 +624,32 @@ export function EstimateGenerator({
         />
       </div>
 
+      <div className="flex items-center gap-2">
+        <Button
+          variant={!showArchived ? 'primary' : 'secondary'}
+          size="sm"
+          onClick={() => setShowArchived(false)}
+        >
+          Active
+        </Button>
+        <Button
+          variant={showArchived ? 'primary' : 'secondary'}
+          size="sm"
+          onClick={() => setShowArchived(true)}
+        >
+          Archived
+        </Button>
+      </div>
+
         {totalEstimates === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-zinc-400">
                 {searchTerm.trim()
                   ? 'No custom cabinets match your search.'
-                  : 'No estimates yet. Create your first estimate to get started.'}
+                  : showArchived
+                    ? 'No archived custom cabinets yet.'
+                    : 'No estimates yet. Create your first estimate to get started.'}
               </p>
             </CardContent>
           </Card>
@@ -662,7 +701,7 @@ export function EstimateGenerator({
                       <td className="px-4 py-3 text-sm font-medium text-zinc-100 text-right">
                         {formatCurrency(estimate.totalAmount)}
                       </td>
-                       <td className="px-4 py-3 text-right">
+<td className="px-4 py-3 text-right">
                          <Button
                            variant="ghost"
                            size="sm"
@@ -688,18 +727,28 @@ export function EstimateGenerator({
                            variant="ghost"
                            size="sm"
                            onClick={(e) => {
-                            e.stopPropagation();
-                            openDeleteEstimateModal(estimate);
-                          }}
-                        >
-                          <Trash2 size={14} className="text-red-500" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                             e.stopPropagation();
+                             const rect = e.currentTarget.getBoundingClientRect();
+                             setEstimateActionMenu((prev) =>
+                               prev?.jobId === estimate.jobId
+                                 ? null
+                                 : {
+                                     jobId: estimate.jobId,
+                                     top: rect.bottom + 4,
+                                     left: rect.right - 176,
+                                   }
+                             );
+                           }}
+                           title="More actions"
+                         >
+                           <MoreVertical size={14} className="text-zinc-400" />
+                         </Button>
+                       </td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
+             </div>
             <div className="flex items-center justify-between border-t border-zinc-800 px-4 py-3">
               <div className="flex items-center gap-3">
                 <label className="text-xs text-zinc-400">Rows</label>
@@ -738,8 +787,44 @@ export function EstimateGenerator({
                 </Button>
               </div>
             </div>
-          </Card>
+</Card>
         )}
+
+        {estimateActionMenu && (() => {
+          const menuEstimate = estimates.find(
+            (estimate) => estimate.jobId === estimateActionMenu.jobId,
+          );
+          if (!menuEstimate) return null;
+
+          return (
+            <RowActionMenu
+              top={estimateActionMenu.top}
+              left={estimateActionMenu.left}
+              onClose={() => setEstimateActionMenu(null)}
+              items={[
+                {
+                  label: menuEstimate.archived ? 'Restore' : 'Archive',
+                  icon: menuEstimate.archived ? (
+                    <ArchiveRestore size={14} />
+                  ) : (
+                    <Archive size={14} />
+                  ),
+                  onClick: () =>
+                    void handleArchiveToggle(
+                      menuEstimate,
+                      !Boolean(menuEstimate.archived),
+                    ),
+                },
+                {
+                  label: 'Delete',
+                  icon: <Trash2 size={14} />,
+                  danger: true,
+                  onClick: () => openDeleteEstimateModal(menuEstimate),
+                },
+              ]}
+            />
+          );
+        })()}
 
         <Modal
           isOpen={isDeleteModalOpen}
