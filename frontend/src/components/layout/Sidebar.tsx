@@ -108,7 +108,7 @@ export function Sidebar({ activeView, onViewChange, onOpenSearch }: SidebarProps
       </div>
 
       <div className="px-4 py-3 border-t border-zinc-800">
-        <p className={cn('text-zinc-500', isCollapsed ? 'text-[10px] text-center' : 'text-xs')}>v1.0.0</p>
+        <p className={cn('text-zinc-500', isCollapsed ? 'text-[10px] text-center' : 'text-xs')}>v1.1.0</p>
       </div>
     </aside>
   );
