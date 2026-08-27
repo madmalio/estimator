@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader } from "../ui/Card";
 import { Input } from "../ui/Input";
 import { EditableNumberInput } from "../ui/EditableNumberInput";
 import { Select } from "../ui/Select";
-import { StatusBadge } from "../ui/StatusBadge";
+import { StatusBadgeMenu } from "../ui/StatusBadgeMenu";
 import { CustomerCombobox } from "../ui/CustomerCombobox";
 import { Modal } from "../ui/Modal";
 import { RowActionMenu } from "../ui/RowActionMenu";
@@ -48,6 +48,7 @@ import {
   DeleteManualQuote,
   DuplicateManualQuote,
   UpdateManualQuoteArchived,
+  UpdateManualQuoteStatus,
   GetAllTaxRates,
   GetAllEstimates,
   GenerateProposalPDF,
@@ -1131,6 +1132,17 @@ export function ProposalsView({
     }
   };
 
+  const handleStatusChange = async (quote: ManualQuote, status: string) => {
+    try {
+      await UpdateManualQuoteStatus(quote.id, status);
+      await fetchQuotesPage();
+      showToast("Proposal status updated", "success");
+    } catch (error) {
+      console.error("Failed to update proposal status:", error);
+      showToast("Failed to update proposal status", "error");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1245,7 +1257,12 @@ export function ProposalsView({
                         {quote.jobName || "-"}
                       </td>
                       <td className="px-4 py-3 text-sm text-zinc-400">
-                        <StatusBadge status={quote.status} kind="proposal" />
+                        <StatusBadgeMenu
+                          status={quote.status}
+                          kind="proposal"
+                          statuses={proposalStatuses}
+                          onChange={(status) => void handleStatusChange(quote, status)}
+                        />
                       </td>
                       <td className="px-4 py-3 text-sm text-zinc-400">
                         {formatDate(quote.quoteDate)}

@@ -182,6 +182,10 @@ export function UpdateEstimateSortOrder(arg1) {
   return window['go']['main']['App']['UpdateEstimateSortOrder'](arg1);
 }
 
+export function UpdateEstimateStatus(arg1, arg2) {
+  return window['go']['main']['App']['UpdateEstimateStatus'](arg1, arg2);
+}
+
 export function UpdateLineItem(arg1) {
   return window['go']['main']['App']['UpdateLineItem'](arg1);
 }
@@ -196,6 +200,10 @@ export function UpdateManualQuote(arg1) {
 
 export function UpdateManualQuoteArchived(arg1, arg2) {
   return window['go']['main']['App']['UpdateManualQuoteArchived'](arg1, arg2);
+}
+
+export function UpdateManualQuoteStatus(arg1, arg2) {
+  return window['go']['main']['App']['UpdateManualQuoteStatus'](arg1, arg2);
 }
 
 export function UpdatePriceListItem(arg1, arg2) {

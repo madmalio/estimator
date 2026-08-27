@@ -170,6 +170,10 @@ func (a *App) UpdateEstimateArchived(jobID uint, archived bool) (*database.Estim
 	return a.estimateService.UpdateArchived(jobID, archived)
 }
 
+func (a *App) UpdateEstimateStatus(jobID uint, status string) (*database.EstimateJob, error) {
+	return a.estimateService.UpdateStatus(jobID, status)
+}
+
 func (a *App) DuplicateEstimate(id uint) (*database.EstimateJob, error) {
 	return a.estimateService.Duplicate(id)
 }
@@ -222,6 +226,10 @@ func (a *App) DeleteManualQuote(id uint) error {
 
 func (a *App) UpdateManualQuoteArchived(id uint, archived bool) (*database.ManualQuote, error) {
 	return a.manualQuoteService.UpdateArchived(id, archived)
+}
+
+func (a *App) UpdateManualQuoteStatus(id uint, status string) (*database.ManualQuote, error) {
+	return a.manualQuoteService.UpdateStatus(id, status)
 }
 
 func (a *App) DuplicateManualQuote(id uint) (*database.ManualQuote, error) {

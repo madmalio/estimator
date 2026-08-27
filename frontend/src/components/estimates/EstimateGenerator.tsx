@@ -3,7 +3,7 @@ import { Plus, Printer, Save, ChevronLeft, Trash2, FileText, Copy, Archive, Arch
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
-import { StatusBadge } from '../ui/StatusBadge';
+import { StatusBadgeMenu } from '../ui/StatusBadgeMenu';
 import { CustomerCombobox } from '../ui/CustomerCombobox';
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Modal } from '../ui/Modal';
@@ -32,6 +32,7 @@ import {
   DeleteEstimate,
   DuplicateEstimate,
   UpdateEstimateArchived,
+  UpdateEstimateStatus,
   AddLineItem,
   DeleteLineItem,
   UpdateLineItem,
@@ -379,6 +380,17 @@ const handleDuplicateEstimate = async (jobId: number) => {
     }
   };
 
+  const handleListStatusChange = async (estimate: EstimateJob, status: string) => {
+    try {
+      await UpdateEstimateStatus(estimate.jobId, status);
+      await fetchEstimatesPage();
+      showToast('Custom cabinet status updated', 'success');
+    } catch (error) {
+      console.error('Failed to update custom cabinet status:', error);
+      showToast('Failed to update custom cabinet status', 'error');
+    }
+  };
+
   const handleAddPriceListItem = async () => {
     if (!currentEstimate || !selectedItemId) return;
 
@@ -692,8 +704,13 @@ const handleDuplicateEstimate = async (jobId: number) => {
                       <td className="px-4 py-3 text-sm text-zinc-400">
                         {estimate.customer?.name || '-'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-zinc-400">
-                        <StatusBadge status={estimate.status} kind="estimate" />
+<td className="px-4 py-3 text-sm text-zinc-400">
+                        <StatusBadgeMenu
+                          status={estimate.status}
+                          kind="estimate"
+                          statuses={customCabinetStatuses}
+                          onChange={(status) => void handleListStatusChange(estimate, status)}
+                        />
                       </td>
                       <td className="px-4 py-3 text-sm text-zinc-400">
                         {formatDate(estimate.estimateDate)}

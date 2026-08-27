@@ -209,6 +209,15 @@ func (s *ManualQuoteService) UpdateArchived(id uint, archived bool) (*database.M
 	return s.GetByID(id)
 }
 
+func (s *ManualQuoteService) UpdateStatus(id uint, status string) (*database.ManualQuote, error) {
+	if err := s.db.Model(&database.ManualQuote{}).
+		Where("id = ?", id).
+		Update("status", normalizeProposalStatus(status)).Error; err != nil {
+		return nil, err
+	}
+	return s.GetByID(id)
+}
+
 func (s *ManualQuoteService) Delete(id uint) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("manual_quote_id = ?", id).Delete(&database.ManualQuoteLineItem{}).Error; err != nil {

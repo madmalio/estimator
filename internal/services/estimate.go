@@ -202,6 +202,15 @@ func (s *EstimateService) UpdateArchived(jobID uint, archived bool) (*database.E
 	return s.GetByID(jobID)
 }
 
+func (s *EstimateService) UpdateStatus(jobID uint, status string) (*database.EstimateJob, error) {
+	if err := s.db.Model(&database.EstimateJob{}).
+		Where("job_id = ?", jobID).
+		Update("status", normalizeEstimateStatus(status)).Error; err != nil {
+		return nil, err
+	}
+	return s.GetByID(jobID)
+}
+
 func (s *EstimateService) Delete(id uint) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		// Delete all line items first

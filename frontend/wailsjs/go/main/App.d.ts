@@ -93,6 +93,8 @@ export function UpdateEstimateArchived(arg1:number,arg2:boolean):Promise<databas
 
 export function UpdateEstimateSortOrder(arg1:Array<types.SortOrderUpdate>):Promise<void>;
 
+export function UpdateEstimateStatus(arg1:number,arg2:string):Promise<database.EstimateJob>;
+
 export function UpdateLineItem(arg1:types.UpdateLineItemRequest):Promise<database.EstimateLineItem>;
 
 export function UpdateLineItemSortOrder(arg1:Array<types.SortOrderUpdate>):Promise<void>;
@@ -100,6 +102,8 @@ export function UpdateLineItemSortOrder(arg1:Array<types.SortOrderUpdate>):Promi
 export function UpdateManualQuote(arg1:types.UpdateManualQuoteRequest):Promise<database.ManualQuote>;
 
 export function UpdateManualQuoteArchived(arg1:number,arg2:boolean):Promise<database.ManualQuote>;
+
+export function UpdateManualQuoteStatus(arg1:number,arg2:string):Promise<database.ManualQuote>;
 
 export function UpdatePriceListItem(arg1:number,arg2:types.CreatePriceListItemRequest):Promise<database.PriceListItem>;
 
