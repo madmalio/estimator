@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import type { DraggableAttributes } from "@dnd-kit/core";
+import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import {
   ChevronLeft,
   Trash2,
@@ -19,6 +21,8 @@ import { CustomerCombobox } from "../ui/CustomerCombobox";
 import { CustomerForm } from "../customers/CustomerForm";
 import { Modal } from "../ui/Modal";
 import { RowActionMenu } from "../ui/RowActionMenu";
+import { SortableList } from "../dnd/SortableList";
+import { DragHandle } from "../dnd/DragHandle";
 import { useToast } from "../ui/Toast";
 import { formatCurrency, formatDate } from "../../lib/utils";
 import { buildPrintDocumentHtml } from "../../lib/printHtml";
@@ -71,7 +75,7 @@ interface InvoiceFormState {
   invoiceDate: string;
   dueDate: string;
   notes: string;
-  invoiceNotes: string;
+  invoiceNotes: EditableInvoiceNote[];
   lineItems: EditableLineItem[];
   payments: EditablePayment[];
   subtotal: number;
@@ -79,6 +83,11 @@ interface InvoiceFormState {
   total: number;
   amountPaid: number;
   balanceDue: number;
+}
+
+interface EditableInvoiceNote {
+  text: string;
+  clientId: string;
 }
 
 interface EditableLineItem extends InvoiceLineItemRequest {
@@ -96,6 +105,23 @@ interface DraftPaymentState {
   cardType: string;
   cardLast4: string;
   checkNumber: string;
+}
+
+interface DraftInvoiceNoteState {
+  text: string;
+}
+
+interface SortableEditableRowProps {
+  listeners?: SyntheticListenerMap;
+  attributes?: DraggableAttributes;
+  showDragHandle?: boolean;
+}
+
+interface NoteEditorRowProps extends SortableEditableRowProps {
+  note: EditableInvoiceNote;
+  index: number;
+  onUpdateNote: (index: number, text: string) => void;
+  onRemoveNote: (index: number) => void;
 }
 
 const invoiceStatuses = [
@@ -209,7 +235,7 @@ const defaultForm: InvoiceFormState = {
   invoiceDate: todayInputValue(),
   dueDate: "",
   notes: "",
-  invoiceNotes: "",
+  invoiceNotes: [],
   lineItems: [],
   payments: [],
   subtotal: 0,
@@ -228,8 +254,51 @@ const defaultDraftPayment: DraftPaymentState = {
   checkNumber: "",
 };
 
-function createClientId(prefix: "item" | "payment"): string {
+const defaultDraftInvoiceNote: DraftInvoiceNoteState = {
+  text: "",
+};
+
+function createClientId(prefix: "item" | "payment" | "note"): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function parseInvoiceNotes(raw: string): EditableInvoiceNote[] {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return [];
+
+  try {
+    const parsed = JSON.parse(trimmed) as {
+      notes?: { text?: string }[];
+    };
+    if (Array.isArray(parsed?.notes)) {
+      return parsed.notes
+        .filter((note) => note && typeof note.text === "string")
+        .map((note) => ({
+          clientId: createClientId("note"),
+          text: note.text as string,
+        }));
+    }
+  } catch {
+    // fall through to plain-text handling
+  }
+
+  return [
+    {
+      clientId: createClientId("note"),
+      text: trimmed,
+    },
+  ];
+}
+
+function stringifyInvoiceNotes(notes: EditableInvoiceNote[]): string {
+  const trimmed = notes
+    .map((note) => (note.text || "").trim())
+    .filter((text) => text.length > 0);
+  if (trimmed.length === 0) return "";
+
+  return JSON.stringify({
+    notes: trimmed.map((text) => ({ text })),
+  });
 }
 
 function invoiceToForm(invoice: Invoice): InvoiceFormState {
@@ -272,7 +341,7 @@ function invoiceToForm(invoice: Invoice): InvoiceFormState {
     invoiceDate: toDateInputValue(invoice.invoiceDate) || todayInputValue(),
     dueDate: toDateInputValue(invoice.dueDate),
     notes: invoice.notes || "",
-    invoiceNotes: invoice.invoiceNotes || "",
+    invoiceNotes: parseInvoiceNotes(invoice.invoiceNotes || ""),
     lineItems: (invoice.lineItems || [])
       .slice()
       .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
@@ -290,6 +359,41 @@ function invoiceToForm(invoice: Invoice): InvoiceFormState {
     amountPaid: invoice.amountPaid || 0,
     balanceDue: invoice.balanceDue || 0,
   };
+}
+
+function NoteEditorRow({
+  note,
+  index,
+  onUpdateNote,
+  onRemoveNote,
+  listeners,
+  attributes,
+  showDragHandle = false,
+}: NoteEditorRowProps) {
+  return (
+    <div className="px-3 py-3 bg-zinc-900/40 rounded">
+      <div className="grid grid-cols-[32px_1fr] gap-2 items-start">
+        <div className="pt-1 flex justify-center">
+          {showDragHandle ? (
+            <DragHandle listeners={listeners} attributes={attributes} />
+          ) : null}
+        </div>
+        <div className="space-y-2">
+          <textarea
+            rows={2}
+            value={note.text}
+            onChange={(e) => onUpdateNote(index, e.target.value)}
+            className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
+          />
+          <div className="flex items-center justify-end">
+            <Button variant="ghost" onClick={() => onRemoveNote(index)}>
+              <Trash2 size={14} className="text-red-500" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function InvoicesView({
@@ -311,6 +415,8 @@ export function InvoicesView({
   const [form, setForm] = useState<InvoiceFormState>(defaultForm);
   const [draftPayment, setDraftPayment] =
     useState<DraftPaymentState>(defaultDraftPayment);
+  const [draftInvoiceNote, setDraftInvoiceNote] =
+    useState<DraftInvoiceNoteState>(defaultDraftInvoiceNote);
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
@@ -366,7 +472,7 @@ export function InvoicesView({
       invoiceDate: invoiceDateIso,
       dueDate: dueDateIso,
       notes: formState.notes,
-      invoiceNotes: formState.invoiceNotes,
+      invoiceNotes: stringifyInvoiceNotes(formState.invoiceNotes),
       lineItems: formState.lineItems.map((item, index) => ({
         itemName: item.itemName,
         description: item.description,
@@ -773,6 +879,50 @@ export function InvoicesView({
       payments: prev.payments.filter(
         (_, paymentIndex) => paymentIndex !== index,
       ),
+    }));
+  };
+
+  const handleAddInvoiceNote = () => {
+    if (!draftInvoiceNote.text.trim()) {
+      showToast("Enter a note before adding", "error");
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      invoiceNotes: [
+        ...prev.invoiceNotes,
+        {
+          clientId: createClientId("note"),
+          text: draftInvoiceNote.text.trim(),
+        },
+      ],
+    }));
+    setDraftInvoiceNote(defaultDraftInvoiceNote);
+  };
+
+  const updateInvoiceNote = (index: number, text: string) => {
+    setForm((prev) => ({
+      ...prev,
+      invoiceNotes: prev.invoiceNotes.map((note, noteIndex) =>
+        noteIndex === index ? { ...note, text } : note,
+      ),
+    }));
+  };
+
+  const removeInvoiceNote = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      invoiceNotes: prev.invoiceNotes.filter(
+        (_, noteIndex) => noteIndex !== index,
+      ),
+    }));
+  };
+
+  const reorderInvoiceNotes = (notes: EditableInvoiceNote[]) => {
+    setForm((prev) => ({
+      ...prev,
+      invoiceNotes: notes,
     }));
   };
 
@@ -1417,14 +1567,21 @@ export function InvoicesView({
               </div>
             )}
 
-            {form.invoiceNotes && (
+            {form.invoiceNotes.length > 0 && (
               <div className="mt-6">
                 <div className="border-b border-black pb-1 mb-2 text-[13px] font-semibold leading-none">
                   Invoice Notes
                 </div>
-                <p className="text-[12px] leading-[1.45] whitespace-pre-wrap">
-                  {form.invoiceNotes}
-                </p>
+                <div className="space-y-2 text-[12px] leading-[1.45]">
+                  {form.invoiceNotes.map((note, index) => (
+                    <p
+                      key={`${note.text}-${index}`}
+                      className="whitespace-pre-wrap"
+                    >
+                      {note.text}
+                    </p>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -1858,18 +2015,52 @@ export function InvoicesView({
                     <p className="text-xs uppercase tracking-wide text-zinc-400 mb-1">
                       Invoice Notes
                     </p>
-                    <textarea
-                      rows={4}
-                      value={form.invoiceNotes}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          invoiceNotes: e.target.value,
-                        }))
-                      }
-                      placeholder="Add notes for this invoice..."
-                      className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
-                    />
+                    <div className="space-y-2">
+                      <textarea
+                        rows={3}
+                        value={draftInvoiceNote.text}
+                        onChange={(e) =>
+                          setDraftInvoiceNote((prev) => ({
+                            ...prev,
+                            text: e.target.value,
+                          }))
+                        }
+                        placeholder="Add a note..."
+                        className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
+                      />
+                      <div className="flex items-center justify-end">
+                        <Button onClick={handleAddInvoiceNote}>Add Note</Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-zinc-700 overflow-hidden">
+                    {form.invoiceNotes.length === 0 ? (
+                      <div className="px-3 py-4 text-sm text-zinc-500">
+                        No invoice notes yet
+                      </div>
+                    ) : (
+                      <SortableList
+                        items={form.invoiceNotes}
+                        onReorder={reorderInvoiceNotes}
+                        keyExtractor={(note) => note.clientId}
+                        className="space-y-2 p-2"
+                        renderItem={(note) => {
+                          const index = form.invoiceNotes.findIndex(
+                            (entry) => entry.clientId === note.clientId,
+                          );
+                          return (
+                            <NoteEditorRow
+                              note={note}
+                              index={index}
+                              showDragHandle
+                              onUpdateNote={updateInvoiceNote}
+                              onRemoveNote={removeInvoiceNote}
+                            />
+                          );
+                        }}
+                      />
+                    )}
                   </div>
                 </CardContent>
               </Card>
