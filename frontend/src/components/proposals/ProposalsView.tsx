@@ -22,6 +22,7 @@ import { EditableNumberInput } from "../ui/EditableNumberInput";
 import { Select } from "../ui/Select";
 import { StatusBadgeMenu } from "../ui/StatusBadgeMenu";
 import { CustomerCombobox } from "../ui/CustomerCombobox";
+import { CustomerForm } from "../customers/CustomerForm";
 import { Modal } from "../ui/Modal";
 import { RowActionMenu } from "../ui/RowActionMenu";
 import { useToast } from "../ui/Toast";
@@ -31,6 +32,7 @@ import { printHtmlInHiddenFrame } from "../../lib/framePrint";
 import type {
   CompanySettings,
   Customer,
+  CreateCustomerRequest,
   EstimateJob,
   ManualQuote,
   ManualQuoteLineItem,
@@ -40,6 +42,7 @@ import type {
 import { types as wailsTypes } from "../../../wailsjs/go/models";
 import {
   GetAllCustomers,
+  CreateCustomer,
   GetManualQuotesPage,
   GetManualQuote,
   GetCompanySettings,
@@ -446,6 +449,7 @@ export function ProposalsView({
   const [draftNote, setDraftNote] = useState<DraftNoteState>(defaultDraftNote);
   const [quoteToDelete, setQuoteToDelete] = useState<ManualQuote | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showArchived, setShowArchived] = useState(false);
@@ -712,6 +716,24 @@ export function ProposalsView({
     } catch (error) {
       console.error("Failed to create manual quote:", error);
       showToast("Failed to create manual quote", "error");
+    }
+  };
+
+  const handleCreateCustomer = async (data: CreateCustomerRequest) => {
+    try {
+      const created = (await CreateCustomer({
+        ...data,
+        archived: false,
+      })) as Customer | null;
+      if (created) {
+        setCustomers((prev) => [...prev, created]);
+        setForm((prev) => ({ ...prev, customerId: created.id }));
+        setIsAddCustomerModalOpen(false);
+        showToast("Customer added", "success");
+      }
+    } catch (error) {
+      console.error("Failed to create customer:", error);
+      showToast("Failed to create customer", "error");
     }
   };
 
@@ -1704,6 +1726,7 @@ export function ProposalsView({
                       }))
                     }
                     placeholder="Search customer..."
+                    onAddNewCustomer={() => setIsAddCustomerModalOpen(true)}
                   />
                   <Input
                     label="Job Name"
@@ -2117,6 +2140,17 @@ export function ProposalsView({
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={isAddCustomerModalOpen}
+        onClose={() => setIsAddCustomerModalOpen(false)}
+        title="Add Customer"
+      >
+        <CustomerForm
+          onSubmit={(data) => void handleCreateCustomer(data)}
+          onCancel={() => setIsAddCustomerModalOpen(false)}
+        />
+      </Modal>
     </>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { Input } from './Input';
 import type { Customer } from '../../types';
 
@@ -13,6 +14,8 @@ interface CustomerComboboxProps {
   placeholder?: string;
   disabled?: boolean;
   recentLimit?: number;
+  onAddNewCustomer?: () => void;
+  addNewLabel?: string;
 }
 
 export function CustomerCombobox({
@@ -23,6 +26,8 @@ export function CustomerCombobox({
   placeholder = 'Search customer...',
   disabled,
   recentLimit = 8,
+  onAddNewCustomer,
+  addNewLabel = 'Add new customer',
 }: CustomerComboboxProps) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -155,6 +160,22 @@ export function CustomerCombobox({
                 )}
               </button>
             ))
+          )}
+          {onAddNewCustomer && (
+            <div className="border-t border-zinc-700">
+              <button
+                type="button"
+                className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-zinc-200 hover:bg-zinc-800"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  setIsOpen(false);
+                  onAddNewCustomer();
+                }}
+              >
+                <Plus size={14} />
+                {addNewLabel}
+              </button>
+            </div>
           )}
         </div>
       )}

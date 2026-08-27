@@ -5,6 +5,7 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { StatusBadgeMenu } from '../ui/StatusBadgeMenu';
 import { CustomerCombobox } from '../ui/CustomerCombobox';
+import { CustomerForm } from '../customers/CustomerForm';
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Modal } from '../ui/Modal';
 import { RowActionMenu } from '../ui/RowActionMenu';
@@ -21,9 +22,11 @@ import type {
   EstimateJob,
   SortOrderUpdate,
   CreateLineItemRequest,
+  CreateCustomerRequest,
 } from '../../types';
 import {
   GetAllCustomers,
+  CreateCustomer,
   GetAllCategoriesWithItems,
   GetEstimatesPage,
   GetEstimate,
@@ -83,8 +86,9 @@ export function EstimateGenerator({
   const [estimates, setEstimates] = useState<EstimateJob[]>([]);
   const [totalEstimates, setTotalEstimates] = useState(0);
   const [currentEstimate, setCurrentEstimate] = useState<EstimateJob | null>(null);
-  const [estimateToDelete, setEstimateToDelete] = useState<EstimateJob | null>(null);
+const [estimateToDelete, setEstimateToDelete] = useState<EstimateJob | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
 const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showArchived, setShowArchived] = useState(false);
@@ -223,7 +227,7 @@ useEffect(() => {
     }
   };
 
-  const handleCreateDraftEstimate = async (customerIdOverride?: number, jobNameOverride?: string) => {
+const handleCreateDraftEstimate = async (customerIdOverride?: number, jobNameOverride?: string) => {
     const targetCustomerId = customerIdOverride ?? 0;
     const targetJobName = (jobNameOverride ?? 'New Custom Cabinet').trim() || 'New Custom Cabinet';
 
@@ -250,6 +254,24 @@ useEffect(() => {
     } catch (error) {
       console.error('Failed to create estimate:', error);
       showToast('Failed to create estimate', 'error');
+    }
+  };
+
+  const handleCreateCustomer = async (data: CreateCustomerRequest) => {
+    try {
+      const created = (await CreateCustomer({
+        ...data,
+        archived: false,
+      })) as Customer | null;
+      if (created) {
+        setCustomers((prev) => [...prev, created]);
+        setSelectedCustomerId(created.id);
+        setIsAddCustomerModalOpen(false);
+        showToast('Customer added', 'success');
+      }
+    } catch (error) {
+      console.error('Failed to create customer:', error);
+      showToast('Failed to create customer', 'error');
     }
   };
 
@@ -1012,12 +1034,13 @@ const handleDuplicateEstimate = async (jobId: number) => {
             <Card>
               <CardContent className="p-4">
                 <div className="grid grid-cols-3 gap-4">
-                  <CustomerCombobox
+<CustomerCombobox
                     label="Customer"
                     customers={activeCustomers}
                     value={selectedCustomerId}
                     onChange={setSelectedCustomerId}
                     placeholder="Search customer..."
+                    onAddNewCustomer={() => setIsAddCustomerModalOpen(true)}
                   />
                   <Input
                     label="Job Name"
@@ -1163,6 +1186,17 @@ const handleDuplicateEstimate = async (jobId: number) => {
           )}
         </div>
       </div>
+
+      <Modal
+        isOpen={isAddCustomerModalOpen}
+        onClose={() => setIsAddCustomerModalOpen(false)}
+        title="Add Customer"
+      >
+        <CustomerForm
+          onSubmit={(data) => void handleCreateCustomer(data)}
+          onCancel={() => setIsAddCustomerModalOpen(false)}
+        />
+      </Modal>
     </>
   );
 }
