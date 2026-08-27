@@ -1133,6 +1133,9 @@ export function ProposalsView({
   };
 
   const handleStatusChange = async (quote: ManualQuote, status: string) => {
+    setQuotes((prev) =>
+      prev.map((q) => (q.id === quote.id ? { ...q, status } : q)),
+    );
     try {
       await UpdateManualQuoteStatus(quote.id, status);
       await fetchQuotesPage();
@@ -1140,6 +1143,7 @@ export function ProposalsView({
     } catch (error) {
       console.error("Failed to update proposal status:", error);
       showToast("Failed to update proposal status", "error");
+      await fetchQuotesPage();
     }
   };
 

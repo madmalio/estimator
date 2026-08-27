@@ -381,6 +381,9 @@ const handleDuplicateEstimate = async (jobId: number) => {
   };
 
   const handleListStatusChange = async (estimate: EstimateJob, status: string) => {
+    setEstimates((prev) =>
+      prev.map((e) => (e.jobId === estimate.jobId ? { ...e, status } : e)),
+    );
     try {
       await UpdateEstimateStatus(estimate.jobId, status);
       await fetchEstimatesPage();
@@ -388,6 +391,7 @@ const handleDuplicateEstimate = async (jobId: number) => {
     } catch (error) {
       console.error('Failed to update custom cabinet status:', error);
       showToast('Failed to update custom cabinet status', 'error');
+      await fetchEstimatesPage();
     }
   };
 

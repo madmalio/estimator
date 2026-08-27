@@ -51,7 +51,10 @@ export function StatusBadgeMenu({
           <button
             type="button"
             className="fixed inset-0 z-30 cursor-default"
-            onClick={() => setPosition(null)}
+            onClick={(event) => {
+              event.stopPropagation();
+              setPosition(null);
+            }}
             aria-label="Close status menu"
           />
           <div
@@ -66,7 +69,8 @@ export function StatusBadgeMenu({
                   'w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-zinc-800',
                   option === current ? 'bg-zinc-800/60' : 'text-zinc-200',
                 )}
-                onClick={() => {
+                onClick={(event) => {
+                  event.stopPropagation();
                   setPosition(null);
                   if (option !== current) {
                     onChange(option);
