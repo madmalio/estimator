@@ -9,5 +9,9 @@
   "author": {
     "name": "",
     "email": ""
+  },
+  "info": {
+    "productName": "CabCon",
+    "productVersion": "1.1.0"
   }
 }
