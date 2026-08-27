@@ -1,6 +1,9 @@
 package types
 
-import "cabinet-estimator/internal/database"
+import (
+	"cabinet-estimator/internal/database"
+	"time"
+)
 
 // SortOrderUpdate is the DTO from frontend for reordering
 type SortOrderUpdate struct {
@@ -137,6 +140,58 @@ type ManualQuoteLineItemRequest struct {
 	SortOrder   int     `json:"sortOrder"`
 }
 
+// CreateInvoiceRequest is the DTO for creating an invoice
+type CreateInvoiceRequest struct {
+	SourceQuoteID *uint                     `json:"sourceQuoteId"`
+	CustomerID    *uint                     `json:"customerId"`
+	JobName       string                    `json:"jobName"`
+	Status        string                    `json:"status"`
+	InvoiceDate   time.Time                 `json:"invoiceDate"`
+	DueDate       time.Time                 `json:"dueDate"`
+	Notes         string                    `json:"notes"`
+	LineItems     []InvoiceLineItemRequest  `json:"lineItems"`
+	Payments      []InvoicePaymentRequest   `json:"payments"`
+	Subtotal      float64                   `json:"subtotal"`
+	Tax           float64                   `json:"tax"`
+	Total         float64                   `json:"total"`
+	AmountPaid    float64                   `json:"amountPaid"`
+	BalanceDue    float64                   `json:"balanceDue"`
+}
+
+// UpdateInvoiceRequest is the DTO for updating an invoice
+type UpdateInvoiceRequest struct {
+	ID            uint                     `json:"id"`
+	SourceQuoteID *uint                    `json:"sourceQuoteId"`
+	CustomerID    *uint                    `json:"customerId"`
+	JobName       string                   `json:"jobName"`
+	Status        string                   `json:"status"`
+	InvoiceDate   time.Time                `json:"invoiceDate"`
+	DueDate       time.Time                `json:"dueDate"`
+	Notes         string                   `json:"notes"`
+	LineItems     []InvoiceLineItemRequest `json:"lineItems"`
+	Payments      []InvoicePaymentRequest  `json:"payments"`
+	Subtotal      float64                  `json:"subtotal"`
+	Tax           float64                  `json:"tax"`
+	Total         float64                  `json:"total"`
+	AmountPaid    float64                  `json:"amountPaid"`
+	BalanceDue    float64                  `json:"balanceDue"`
+}
+
+type InvoiceLineItemRequest struct {
+	ItemName    string  `json:"itemName"`
+	Description string  `json:"description"`
+	LineTotal   float64 `json:"lineTotal"`
+	SortOrder   int     `json:"sortOrder"`
+}
+
+type InvoicePaymentRequest struct {
+	Amount      float64   `json:"amount"`
+	PaymentDate time.Time `json:"paymentDate"`
+	Method      string    `json:"method"`
+	CardType    string    `json:"cardType"`
+	CheckNumber string    `json:"checkNumber"`
+}
+
 type CreateTaxRateRequest struct {
 	Name      string  `json:"name"`
 	Rate      float64 `json:"rate"`
@@ -166,6 +221,14 @@ type ManualQuotePageRequest struct {
 	ShowArchived bool   `json:"showArchived"`
 }
 
+type InvoicePageRequest struct {
+	Page         int    `json:"page"`
+	PageSize     int    `json:"pageSize"`
+	Search       string `json:"search"`
+	Status       string `json:"status"`
+	ShowArchived bool   `json:"showArchived"`
+}
+
 type CustomerPageResponse struct {
 	Items    []database.Customer `json:"items"`
 	Total    int64               `json:"total"`
@@ -185,6 +248,13 @@ type ManualQuotePageResponse struct {
 	Total    int64                  `json:"total"`
 	Page     int                    `json:"page"`
 	PageSize int                    `json:"pageSize"`
+}
+
+type InvoicePageResponse struct {
+	Items    []database.Invoice `json:"items"`
+	Total    int64              `json:"total"`
+	Page     int                `json:"page"`
+	PageSize int                `json:"pageSize"`
 }
 
 type GlobalSearchResult struct {

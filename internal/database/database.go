@@ -63,6 +63,9 @@ func initDB() (*gorm.DB, error) {
 		&CompanySettings{},
 		&ManualQuote{},
 		&ManualQuoteLineItem{},
+		&Invoice{},
+		&InvoiceLineItem{},
+		&InvoicePayment{},
 		&TaxRate{},
 	)
 	if err != nil {

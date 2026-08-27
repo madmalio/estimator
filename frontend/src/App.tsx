@@ -5,6 +5,7 @@ import { GlobalCommandBar } from './components/layout/GlobalCommandBar';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { EstimateGenerator } from './components/estimates/EstimateGenerator';
 import { ProposalsView } from './components/proposals/ProposalsView';
+import { InvoicesView } from './components/invoices/InvoicesView';
 import { CustomerList } from './components/customers/CustomerList';
 import { PriceListView } from './components/pricelist/PriceListView';
 import { SettingsView } from './components/settings/SettingsView';
@@ -53,7 +54,8 @@ function App() {
   const [isCommandBarOpen, setIsCommandBarOpen] = useState(false);
   const [quickCreateProposal, setQuickCreateProposal] = useState<CustomerQuickCreateState | null>(null);
   const [quickCreateEstimate, setQuickCreateEstimate] = useState<CustomerQuickCreateState | null>(null);
-  const [openProposalRecord, setOpenProposalRecord] = useState<OpenRecordState | null>(null);
+const [openProposalRecord, setOpenProposalRecord] = useState<OpenRecordState | null>(null);
+  const [openInvoiceRecord, setOpenInvoiceRecord] = useState<OpenRecordState | null>(null);
   const [openEstimateRecord, setOpenEstimateRecord] = useState<OpenRecordState | null>(null);
   const [customerSearchRequest, setCustomerSearchRequest] = useState<CustomerSearchState | null>(null);
   const [proposalStatusRequest, setProposalStatusRequest] = useState<StatusFilterRequestState | null>(null);
@@ -107,9 +109,15 @@ function App() {
       return;
     }
 
-    if (result.type === 'proposal') {
+if (result.type === 'proposal') {
       setOpenProposalRecord({ id: result.id, token });
       setActiveView('manualquotes');
+      return;
+    }
+
+    if (result.type === 'invoice') {
+      setOpenInvoiceRecord({ id: result.id, token });
+      setActiveView('invoices');
       return;
     }
 
@@ -119,10 +127,16 @@ function App() {
     }
   };
 
-  const openProposalRecordById = (id: number) => {
+const openProposalRecordById = (id: number) => {
     const token = Date.now();
     setOpenProposalRecord({ id, token });
     setActiveView('manualquotes');
+  };
+
+  const openInvoiceRecordById = (id: number) => {
+    const token = Date.now();
+    setOpenInvoiceRecord({ id, token });
+    setActiveView('invoices');
   };
 
   const openEstimateRecordById = (id: number) => {
@@ -182,7 +196,7 @@ function App() {
             onStatusRequestHandled={() => setEstimateStatusRequest(null)}
           />
         )}
-        {activeView === 'manualquotes' && (
+{activeView === 'manualquotes' && (
           <ProposalsView
             quickCreateForCustomer={quickCreateProposal}
             onQuickCreateHandled={() => setQuickCreateProposal(null)}
@@ -190,6 +204,15 @@ function App() {
             onOpenProposalHandled={() => setOpenProposalRecord(null)}
             statusRequest={proposalStatusRequest}
             onStatusRequestHandled={() => setProposalStatusRequest(null)}
+            onInvoiceCreated={(invoiceId) => {
+              openInvoiceRecordById(invoiceId);
+            }}
+          />
+        )}
+        {activeView === 'invoices' && (
+          <InvoicesView
+            openInvoiceRecord={openInvoiceRecord}
+            onOpenInvoiceHandled={() => setOpenInvoiceRecord(null)}
           />
         )}
         {activeView === 'customers' && (

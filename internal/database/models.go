@@ -40,6 +40,7 @@ type EstimateJob struct {
 	MarkupPercent float64            `json:"markupPercent"`
 	MiscCharge    float64            `json:"miscCharge"`
 	Archived      bool               `gorm:"default:false;index" json:"archived"`
+	PdfRevision   int                `gorm:"default:0" json:"pdfRevision"`
 	SortOrder     int                `gorm:"default:0" json:"sortOrder"`
 	LineItems     []EstimateLineItem `gorm:"foreignKey:JobID" json:"lineItems,omitempty"`
 }
@@ -103,6 +104,7 @@ type ManualQuote struct {
 	CreditCardNote  string                `gorm:"type:text" json:"creditCardNote"`
 	SignatureNote   string                `gorm:"type:text" json:"signatureNote"`
 	Archived        bool                  `gorm:"default:false;index" json:"archived"`
+	PdfRevision     int                   `gorm:"default:0" json:"pdfRevision"`
 	SortOrder       int                   `gorm:"default:0" json:"sortOrder"`
 	CreatedAt       time.Time             `json:"createdAt"`
 	UpdatedAt       time.Time             `json:"updatedAt"`
@@ -115,4 +117,50 @@ type ManualQuoteLineItem struct {
 	Description   string  `gorm:"type:text" json:"description"`
 	LineTotal     float64 `json:"lineTotal"`
 	SortOrder     int     `gorm:"default:0" json:"sortOrder"`
+}
+
+type Invoice struct {
+	ID            uint              `gorm:"primaryKey" json:"id"`
+	InvoiceNumber string            `json:"invoiceNumber"`
+	SourceQuoteID *uint             `gorm:"index" json:"sourceQuoteId"`
+	CustomerID    *uint             `json:"customerId"`
+	Customer      *Customer         `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
+	JobName       string            `json:"jobName"`
+	Status        string            `gorm:"not null;default:'unpaid';index" json:"status"`
+	InvoiceDate   time.Time         `json:"invoiceDate"`
+	DueDate       time.Time         `json:"dueDate"`
+	Notes         string            `gorm:"type:text" json:"notes"`
+	LineItems     []InvoiceLineItem `gorm:"foreignKey:InvoiceID" json:"lineItems,omitempty"`
+	Payments      []InvoicePayment  `gorm:"foreignKey:InvoiceID" json:"payments,omitempty"`
+	Subtotal      float64           `json:"subtotal"`
+	Tax           float64           `json:"tax"`
+	Total         float64           `json:"total"`
+AmountPaid    float64            `json:"amountPaid"`
+	BalanceDue    float64            `json:"balanceDue"`
+	Archived      bool               `gorm:"default:false;index" json:"archived"`
+	PdfRevision   int                `gorm:"default:0" json:"pdfRevision"`
+	SortOrder     int                `gorm:"default:0" json:"sortOrder"`
+	CreatedAt     time.Time          `json:"createdAt"`
+	UpdatedAt     time.Time          `json:"updatedAt"`
+}
+
+type InvoiceLineItem struct {
+	ID          uint    `gorm:"primaryKey" json:"id"`
+	InvoiceID   uint    `gorm:"not null;index" json:"invoiceId"`
+	ItemName    string  `json:"itemName"`
+	Description string  `gorm:"type:text" json:"description"`
+	LineTotal   float64 `json:"lineTotal"`
+	SortOrder   int     `gorm:"default:0" json:"sortOrder"`
+}
+
+type InvoicePayment struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	InvoiceID   uint      `gorm:"not null;index" json:"invoiceId"`
+	Amount      float64   `gorm:"not null" json:"amount"`
+	PaymentDate time.Time `json:"paymentDate"`
+	Method      string    `gorm:"not null;default:'cash'" json:"method"`
+	CardType    string    `json:"cardType"`
+	CheckNumber string    `json:"checkNumber"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }

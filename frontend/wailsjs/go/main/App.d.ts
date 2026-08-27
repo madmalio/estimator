@@ -11,6 +11,10 @@ export function CreateCustomer(arg1:types.CreateCustomerRequest):Promise<databas
 
 export function CreateEstimate(arg1:types.CreateEstimateJobRequest):Promise<database.EstimateJob>;
 
+export function CreateInvoice(arg1:types.CreateInvoiceRequest):Promise<database.Invoice>;
+
+export function CreateInvoiceFromProposal(arg1:number):Promise<database.Invoice>;
+
 export function CreateManualQuote(arg1:types.CreateManualQuoteRequest):Promise<database.ManualQuote>;
 
 export function CreatePriceListItem(arg1:types.CreatePriceListItemRequest):Promise<database.PriceListItem>;
@@ -23,6 +27,8 @@ export function DeleteCustomer(arg1:number):Promise<void>;
 
 export function DeleteEstimate(arg1:number):Promise<void>;
 
+export function DeleteInvoice(arg1:number):Promise<void>;
+
 export function DeleteLineItem(arg1:number):Promise<void>;
 
 export function DeleteManualQuote(arg1:number):Promise<void>;
@@ -33,9 +39,13 @@ export function DeleteTaxRate(arg1:number):Promise<void>;
 
 export function DuplicateEstimate(arg1:number):Promise<database.EstimateJob>;
 
+export function DuplicateInvoice(arg1:number):Promise<database.Invoice>;
+
 export function DuplicateManualQuote(arg1:number):Promise<database.ManualQuote>;
 
 export function GenerateEstimatePDF(arg1:number,arg2:string):Promise<string>;
+
+export function GenerateInvoicePDF(arg1:number,arg2:string):Promise<string>;
 
 export function GenerateProposalPDF(arg1:number,arg2:string):Promise<string>;
 
@@ -46,6 +56,8 @@ export function GetAllCategoriesWithItems():Promise<Array<database.Category>>;
 export function GetAllCustomers():Promise<Array<database.Customer>>;
 
 export function GetAllEstimates():Promise<Array<database.EstimateJob>>;
+
+export function GetAllInvoices():Promise<Array<database.Invoice>>;
 
 export function GetAllManualQuotes():Promise<Array<database.ManualQuote>>;
 
@@ -66,6 +78,10 @@ export function GetEstimate(arg1:number):Promise<database.EstimateJob>;
 export function GetEstimatesByCustomer(arg1:number):Promise<Array<database.EstimateJob>>;
 
 export function GetEstimatesPage(arg1:types.EstimatePageRequest):Promise<types.EstimatePageResponse>;
+
+export function GetInvoice(arg1:number):Promise<database.Invoice>;
+
+export function GetInvoicesPage(arg1:types.InvoicePageRequest):Promise<types.InvoicePageResponse>;
 
 export function GetManualQuote(arg1:number):Promise<database.ManualQuote>;
 
@@ -94,6 +110,12 @@ export function UpdateEstimateArchived(arg1:number,arg2:boolean):Promise<databas
 export function UpdateEstimateSortOrder(arg1:Array<types.SortOrderUpdate>):Promise<void>;
 
 export function UpdateEstimateStatus(arg1:number,arg2:string):Promise<database.EstimateJob>;
+
+export function UpdateInvoice(arg1:types.UpdateInvoiceRequest):Promise<database.Invoice>;
+
+export function UpdateInvoiceArchived(arg1:number,arg2:boolean):Promise<database.Invoice>;
+
+export function UpdateInvoiceStatus(arg1:number,arg2:string):Promise<database.Invoice>;
 
 export function UpdateLineItem(arg1:types.UpdateLineItemRequest):Promise<database.EstimateLineItem>;
 

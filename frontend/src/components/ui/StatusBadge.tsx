@@ -1,7 +1,7 @@
 import { CheckCircle2, CircleDashed, CircleX, Hammer, Send, ShieldCheck } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-type StatusKind = 'proposal' | 'estimate';
+type StatusKind = 'proposal' | 'estimate' | 'invoice';
 
 interface StatusBadgeProps {
   status: string | undefined;
@@ -30,28 +30,28 @@ function styleFor(status: string, kind: StatusKind) {
     };
   }
 
-  if (value === 'closed' || value === 'installed') {
+  if (value === 'closed' || value === 'installed' || value === 'paid') {
     return {
       className: 'status-badge--closed',
       icon: <CheckCircle2 size={12} />,
     };
   }
 
-  if (value === 'declined') {
+  if (value === 'declined' || value === 'void') {
     return {
       className: 'status-badge--declined',
       icon: <CircleX size={12} />,
     };
   }
 
-  if (value === 'in-progress') {
+  if (value === 'in-progress' || value === 'partial') {
     return {
       className: 'status-badge--in-progress',
       icon: <Hammer size={12} />,
     };
   }
 
-  if (value === 'sent' || value === 'quoted') {
+  if (value === 'sent' || value === 'quoted' || value === 'unpaid') {
     return {
       className: 'status-badge--active',
       icon: <Send size={12} />,

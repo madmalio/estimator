@@ -36,6 +36,7 @@ export interface EstimateJob {
 markupPercent: number;
   miscCharge: number;
   archived?: boolean;
+  pdfRevision?: number;
   sortOrder: number;
   lineItems?: EstimateLineItem[];
 }
@@ -172,8 +173,9 @@ export interface ManualQuote {
   termsBlock2: string;
   paymentsNote: string;
   creditCardNote: string;
-  signatureNote: string;
+signatureNote: string;
   archived?: boolean;
+  pdfRevision?: number;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -186,8 +188,97 @@ export interface ManualQuotePageResponse {
   pageSize: number;
 }
 
+export interface Invoice {
+  id: number;
+  invoiceNumber: string;
+  sourceQuoteId?: number;
+  customerId?: number;
+  customer?: Customer;
+  jobName: string;
+  status: string;
+  invoiceDate: string;
+  dueDate: string;
+  notes: string;
+  lineItems?: InvoiceLineItem[];
+  payments?: InvoicePayment[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  amountPaid: number;
+  balanceDue: number;
+  archived?: boolean;
+  pdfRevision?: number;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvoiceLineItem {
+  id: number;
+  invoiceId: number;
+  itemName: string;
+  description: string;
+  lineTotal: number;
+  sortOrder: number;
+}
+
+export interface InvoicePayment {
+  id: number;
+  invoiceId: number;
+  amount: number;
+  paymentDate: string;
+  method: string;
+  cardType: string;
+  checkNumber: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvoicePaymentRequest {
+  amount: number;
+  paymentDate: string;
+  method: string;
+  cardType: string;
+  checkNumber: string;
+}
+
+export interface InvoiceLineItemRequest {
+  itemName: string;
+  description: string;
+  lineTotal: number;
+  sortOrder: number;
+}
+
+export interface CreateInvoiceRequest {
+  sourceQuoteId?: number;
+  customerId?: number;
+  jobName: string;
+  status: string;
+  invoiceDate: string;
+  dueDate: string;
+  notes: string;
+  lineItems: InvoiceLineItemRequest[];
+  payments: InvoicePaymentRequest[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  amountPaid: number;
+  balanceDue: number;
+}
+
+export interface UpdateInvoiceRequest extends CreateInvoiceRequest {
+  id: number;
+}
+
+export interface InvoicePageResponse {
+  items: Invoice[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface GlobalSearchResult {
-  type: 'customer' | 'proposal' | 'estimate';
+  type: 'customer' | 'proposal' | 'estimate' | 'invoice';
   id: number;
   title: string;
   subtitle: string;

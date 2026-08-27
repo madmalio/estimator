@@ -18,6 +18,14 @@ export function CreateEstimate(arg1) {
   return window['go']['main']['App']['CreateEstimate'](arg1);
 }
 
+export function CreateInvoice(arg1) {
+  return window['go']['main']['App']['CreateInvoice'](arg1);
+}
+
+export function CreateInvoiceFromProposal(arg1) {
+  return window['go']['main']['App']['CreateInvoiceFromProposal'](arg1);
+}
+
 export function CreateManualQuote(arg1) {
   return window['go']['main']['App']['CreateManualQuote'](arg1);
 }
@@ -42,6 +50,10 @@ export function DeleteEstimate(arg1) {
   return window['go']['main']['App']['DeleteEstimate'](arg1);
 }
 
+export function DeleteInvoice(arg1) {
+  return window['go']['main']['App']['DeleteInvoice'](arg1);
+}
+
 export function DeleteLineItem(arg1) {
   return window['go']['main']['App']['DeleteLineItem'](arg1);
 }
@@ -62,12 +74,20 @@ export function DuplicateEstimate(arg1) {
   return window['go']['main']['App']['DuplicateEstimate'](arg1);
 }
 
+export function DuplicateInvoice(arg1) {
+  return window['go']['main']['App']['DuplicateInvoice'](arg1);
+}
+
 export function DuplicateManualQuote(arg1) {
   return window['go']['main']['App']['DuplicateManualQuote'](arg1);
 }
 
 export function GenerateEstimatePDF(arg1, arg2) {
   return window['go']['main']['App']['GenerateEstimatePDF'](arg1, arg2);
+}
+
+export function GenerateInvoicePDF(arg1, arg2) {
+  return window['go']['main']['App']['GenerateInvoicePDF'](arg1, arg2);
 }
 
 export function GenerateProposalPDF(arg1, arg2) {
@@ -88,6 +108,10 @@ export function GetAllCustomers() {
 
 export function GetAllEstimates() {
   return window['go']['main']['App']['GetAllEstimates']();
+}
+
+export function GetAllInvoices() {
+  return window['go']['main']['App']['GetAllInvoices']();
 }
 
 export function GetAllManualQuotes() {
@@ -128,6 +152,14 @@ export function GetEstimatesByCustomer(arg1) {
 
 export function GetEstimatesPage(arg1) {
   return window['go']['main']['App']['GetEstimatesPage'](arg1);
+}
+
+export function GetInvoice(arg1) {
+  return window['go']['main']['App']['GetInvoice'](arg1);
+}
+
+export function GetInvoicesPage(arg1) {
+  return window['go']['main']['App']['GetInvoicesPage'](arg1);
 }
 
 export function GetManualQuote(arg1) {
@@ -184,6 +216,18 @@ export function UpdateEstimateSortOrder(arg1) {
 
 export function UpdateEstimateStatus(arg1, arg2) {
   return window['go']['main']['App']['UpdateEstimateStatus'](arg1, arg2);
+}
+
+export function UpdateInvoice(arg1) {
+  return window['go']['main']['App']['UpdateInvoice'](arg1);
+}
+
+export function UpdateInvoiceArchived(arg1, arg2) {
+  return window['go']['main']['App']['UpdateInvoiceArchived'](arg1, arg2);
+}
+
+export function UpdateInvoiceStatus(arg1, arg2) {
+  return window['go']['main']['App']['UpdateInvoiceStatus'](arg1, arg2);
 }
 
 export function UpdateLineItem(arg1) {

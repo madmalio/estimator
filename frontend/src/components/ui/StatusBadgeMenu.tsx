@@ -4,7 +4,7 @@ import { cn } from '../../lib/utils';
 
 interface StatusBadgeMenuProps {
   status: string | undefined;
-  kind: 'proposal' | 'estimate';
+  kind: 'proposal' | 'estimate' | 'invoice';
   statuses: readonly string[];
   onChange: (status: string) => void;
   disabled?: boolean;

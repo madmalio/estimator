@@ -12,6 +12,7 @@ import {
   Archive,
   ArchiveRestore,
   MoreVertical,
+  ReceiptText,
 } from "lucide-react";
 import { SortableList } from "../dnd/SortableList";
 import { DragHandle } from "../dnd/DragHandle";
@@ -52,6 +53,7 @@ import {
   DuplicateManualQuote,
   UpdateManualQuoteArchived,
   UpdateManualQuoteStatus,
+  CreateInvoiceFromProposal,
   GetAllTaxRates,
   GetAllEstimates,
   GenerateProposalPDF,
@@ -79,6 +81,7 @@ interface ProposalsViewProps {
     token: number;
   } | null;
   onStatusRequestHandled?: () => void;
+  onInvoiceCreated?: (invoiceId: number) => void;
 }
 
 interface ManualQuoteFormState {
@@ -428,6 +431,7 @@ export function ProposalsView({
   onOpenProposalHandled,
   statusRequest,
   onStatusRequestHandled,
+  onInvoiceCreated,
 }: ProposalsViewProps) {
   const [pageSize, setPageSize] = useState(10);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
@@ -1231,6 +1235,20 @@ export function ProposalsView({
     }
   };
 
+  const handleCreateInvoiceFromQuote = async (quote: ManualQuote) => {
+    try {
+      const created = await CreateInvoiceFromProposal(quote.id);
+      const invoice = created as { id: number } | null;
+      if (invoice?.id) {
+        showToast("Invoice created from proposal", "success");
+        onInvoiceCreated?.(invoice.id);
+      }
+    } catch (error) {
+      console.error("Failed to create invoice from proposal:", error);
+      showToast("Failed to create invoice from proposal", "error");
+    }
+  };
+
   const handleArchiveToggle = async (quote: ManualQuote, archive: boolean) => {
     try {
       await UpdateManualQuoteArchived(quote.id, archive);
@@ -1496,6 +1514,12 @@ export function ProposalsView({
               onClose={() => setQuoteActionMenu(null)}
               items={[
                 {
+                  label: "Create Invoice",
+                  icon: <ReceiptText size={14} />,
+                  onClick: () =>
+                    void handleCreateInvoiceFromQuote(menuQuote),
+                },
+                {
                   label: menuQuote.archived ? "Restore" : "Archive",
                   icon: menuQuote.archived ? (
                     <ArchiveRestore size={14} />
@@ -1639,7 +1663,9 @@ export function ProposalsView({
                     <div>
                       <p className="font-medium">{item.itemName || "Item"}</p>
                       {item.description && (
-                        <p className="text-[12px] mt-0.5">{item.description}</p>
+                        <p className="text-[12px] mt-0.5 whitespace-pre-wrap">
+                          {item.description}
+                        </p>
                       )}
                     </div>
                     <div className="text-right">
@@ -1781,6 +1807,19 @@ export function ProposalsView({
                 Cancel
               </Button>
             )}
+            <Button
+              variant="secondary"
+              onClick={() => {
+                if (currentQuote) {
+                  void handleCreateInvoiceFromQuote(currentQuote);
+                }
+              }}
+              disabled={!currentQuote}
+              title="Create an invoice from this proposal"
+            >
+              <ReceiptText size={16} className="mr-2" />
+              Create Invoice
+            </Button>
             <Button variant="secondary" onClick={() => void handleSaveQuote()}>
               <Save size={16} className="mr-2" />
               Save

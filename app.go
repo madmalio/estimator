@@ -20,6 +20,7 @@ type App struct {
 	priceListService   *services.PriceListService
 	estimateService    *services.EstimateService
 	manualQuoteService *services.ManualQuoteService
+	invoiceService     *services.InvoiceService
 	pdfService         *services.PDFService
 	settingsService    *services.SettingsService
 	taxRateService     *services.TaxRateService
@@ -40,6 +41,7 @@ func (a *App) startup(ctx context.Context) {
 	a.priceListService = services.NewPriceListService()
 	a.estimateService = services.NewEstimateService()
 	a.manualQuoteService = services.NewManualQuoteService()
+	a.invoiceService = services.NewInvoiceService()
 	a.pdfService = services.NewPDFService()
 	a.settingsService = services.NewSettingsService()
 	a.taxRateService = services.NewTaxRateService()
@@ -236,6 +238,48 @@ func (a *App) DuplicateManualQuote(id uint) (*database.ManualQuote, error) {
 	return a.manualQuoteService.Duplicate(id)
 }
 
+// ==================== Invoice Methods ====================
+
+func (a *App) GetAllInvoices() ([]database.Invoice, error) {
+	return a.invoiceService.GetAll()
+}
+
+func (a *App) GetInvoicesPage(req types.InvoicePageRequest) (*types.InvoicePageResponse, error) {
+	return a.invoiceService.GetPage(req)
+}
+
+func (a *App) GetInvoice(id uint) (*database.Invoice, error) {
+	return a.invoiceService.GetByID(id)
+}
+
+func (a *App) CreateInvoice(req types.CreateInvoiceRequest) (*database.Invoice, error) {
+	return a.invoiceService.Create(req)
+}
+
+func (a *App) UpdateInvoice(req types.UpdateInvoiceRequest) (*database.Invoice, error) {
+	return a.invoiceService.Update(req)
+}
+
+func (a *App) DeleteInvoice(id uint) error {
+	return a.invoiceService.Delete(id)
+}
+
+func (a *App) UpdateInvoiceArchived(id uint, archived bool) (*database.Invoice, error) {
+	return a.invoiceService.UpdateArchived(id, archived)
+}
+
+func (a *App) UpdateInvoiceStatus(id uint, status string) (*database.Invoice, error) {
+	return a.invoiceService.UpdateStatus(id, status)
+}
+
+func (a *App) DuplicateInvoice(id uint) (*database.Invoice, error) {
+	return a.invoiceService.Duplicate(id)
+}
+
+func (a *App) CreateInvoiceFromProposal(quoteID uint) (*database.Invoice, error) {
+	return a.invoiceService.CreateFromProposal(quoteID)
+}
+
 // ==================== PDF Methods ====================
 
 func (a *App) GenerateEstimatePDF(jobID uint, html string) (string, error) {
@@ -244,6 +288,10 @@ func (a *App) GenerateEstimatePDF(jobID uint, html string) (string, error) {
 
 func (a *App) GenerateProposalPDF(quoteID uint, html string) (string, error) {
 	return a.pdfService.GenerateManualQuotePDF(quoteID, html)
+}
+
+func (a *App) GenerateInvoicePDF(invoiceID uint, html string) (string, error) {
+	return a.pdfService.GenerateInvoicePDF(invoiceID, html)
 }
 
 func (a *App) OpenFileInDefaultApp(filePath string) error {
@@ -342,6 +390,26 @@ func (a *App) SearchGlobal(query string) ([]types.GlobalSearchResult, error) {
 			Title:    estimate.JobName,
 			Subtitle: "Custom Cabinet",
 			Meta:     fmt.Sprintf("%s | %s", estimate.Customer.Name, estimate.EstimateDate.Format("01/02/2006")),
+		})
+	}
+
+	invoicePage, err := a.invoiceService.GetPage(types.InvoicePageRequest{
+		Page:     1,
+		PageSize: 5,
+		Search:   query,
+		Status:   "all",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, invoice := range invoicePage.Items {
+		results = append(results, types.GlobalSearchResult{
+			Type:     "invoice",
+			ID:       invoice.ID,
+			Title:    invoice.JobName,
+			Subtitle: "Invoice",
+			Meta:     fmt.Sprintf("%s | %s", invoice.Customer.Name, invoice.InvoiceDate.Format("01/02/2006")),
 		})
 	}
 

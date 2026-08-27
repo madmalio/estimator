@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { FileText, Users, List, Settings, Clipboard, ChevronLeft, ChevronRight, Search, LayoutDashboard } from 'lucide-react';
+import { FileText, Users, List, Settings, Clipboard, ChevronLeft, ChevronRight, Search, LayoutDashboard, ReceiptText } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-export type ViewType = 'dashboard' | 'estimates' | 'manualquotes' | 'customers' | 'pricelist' | 'settings';
+export type ViewType = 'dashboard' | 'estimates' | 'manualquotes' | 'invoices' | 'customers' | 'pricelist' | 'settings';
 
 interface SidebarProps {
   activeView: ViewType;
@@ -20,6 +20,7 @@ const mainNavItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
   { id: 'customers', label: 'Customers', icon: <Users size={20} /> },
   { id: 'manualquotes', label: 'Proposals', icon: <Clipboard size={20} /> },
+  { id: 'invoices', label: 'Invoices', icon: <ReceiptText size={20} /> },
   { id: 'estimates', label: 'Custom Cabinets', icon: <FileText size={20} /> },
   { id: 'pricelist', label: 'Price Lists', icon: <List size={20} /> },
 ];

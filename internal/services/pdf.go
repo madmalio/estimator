@@ -1,6 +1,7 @@
 package services
 
 import (
+	"cabinet-estimator/internal/database"
 	"context"
 	"errors"
 	"fmt"
@@ -13,17 +14,22 @@ import (
 	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
+	"gorm.io/gorm"
 )
 
 type PDFService struct {
-	estimateService    *EstimateService
-	manualQuoteService *ManualQuoteService
+	db                   *gorm.DB
+	estimateService      *EstimateService
+	manualQuoteService   *ManualQuoteService
+	invoiceService       *InvoiceService
 }
 
 func NewPDFService() *PDFService {
 	return &PDFService{
-		estimateService:    NewEstimateService(),
-		manualQuoteService: NewManualQuoteService(),
+		db:                   database.GetDB(),
+		estimateService:      NewEstimateService(),
+		manualQuoteService:   NewManualQuoteService(),
+		invoiceService:       NewInvoiceService(),
 	}
 }
 
@@ -213,15 +219,24 @@ func (s *PDFService) GenerateEstimatePDF(jobID uint, html string) (string, error
 		return "", err
 	}
 
+	revision := job.PdfRevision + 1
 	filename := fmt.Sprintf(
-		"%s_%s_%s.pdf",
+		"Estimate_%s_%s_%s_%s_Rev%d.pdf",
+		fmt.Sprintf("E-%04d", job.JobID),
 		job.EstimateDate.Format("01-02-2006"),
 		sanitizeFilePart(customerName),
 		sanitizeFilePart(job.JobName),
+		revision,
 	)
 	filePath := nextAvailablePDFPath(filepath.Join(outputDir, filename))
 
 	if err := s.renderHTMLToPDF(html, filePath); err != nil {
+		return "", err
+	}
+
+	if err := s.db.Model(&database.EstimateJob{}).
+		Where("job_id = ?", job.JobID).
+		Update("pdf_revision", revision).Error; err != nil {
 		return "", err
 	}
 
@@ -244,15 +259,74 @@ func (s *PDFService) GenerateManualQuotePDF(quoteID uint, html string) (string, 
 		return "", err
 	}
 
+	quoteNumber := quote.QuoteNumber
+	if quoteNumber == "" {
+		quoteNumber = fmt.Sprintf("P-%04d", quote.ID)
+	}
+
+	revision := quote.PdfRevision + 1
 	filename := fmt.Sprintf(
-		"%s_%s_%s.pdf",
+		"Proposal_%s_%s_%s_%s_Rev%d.pdf",
+		quoteNumber,
 		quote.QuoteDate.Format("01-02-2006"),
 		sanitizeFilePart(customerName),
 		sanitizeFilePart(quote.JobName),
+		revision,
 	)
 	filePath := nextAvailablePDFPath(filepath.Join(outputDir, filename))
 
 	if err := s.renderHTMLToPDF(html, filePath); err != nil {
+		return "", err
+	}
+
+	if err := s.db.Model(&database.ManualQuote{}).
+		Where("id = ?", quote.ID).
+		Update("pdf_revision", revision).Error; err != nil {
+		return "", err
+	}
+
+	return filePath, nil
+}
+
+func (s *PDFService) GenerateInvoicePDF(invoiceID uint, html string) (string, error) {
+	invoice, err := s.invoiceService.GetByID(invoiceID)
+	if err != nil {
+		return "", err
+	}
+
+	customerName := "Unknown"
+	if invoice.Customer != nil && invoice.Customer.Name != "" {
+		customerName = invoice.Customer.Name
+	}
+
+	outputDir, err := documentsBaseDir("Invoices", invoice.InvoiceDate)
+	if err != nil {
+		return "", err
+	}
+
+	invoiceNumber := invoice.InvoiceNumber
+	if invoiceNumber == "" {
+		invoiceNumber = fmt.Sprintf("INV-%04d", invoice.ID)
+	}
+
+	revision := invoice.PdfRevision + 1
+	filename := fmt.Sprintf(
+		"Invoice_%s_%s_%s_%s_Rev%d.pdf",
+		invoiceNumber,
+		invoice.InvoiceDate.Format("01-02-2006"),
+		sanitizeFilePart(customerName),
+		sanitizeFilePart(invoice.JobName),
+		revision,
+	)
+	filePath := nextAvailablePDFPath(filepath.Join(outputDir, filename))
+
+	if err := s.renderHTMLToPDF(html, filePath); err != nil {
+		return "", err
+	}
+
+	if err := s.db.Model(&database.Invoice{}).
+		Where("id = ?", invoice.ID).
+		Update("pdf_revision", revision).Error; err != nil {
 		return "", err
 	}
 

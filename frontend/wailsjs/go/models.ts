@@ -157,6 +157,7 @@ export namespace database {
 	    markupPercent: number;
 	    miscCharge: number;
 	    archived: boolean;
+	    pdfRevision: number;
 	    sortOrder: number;
 	    lineItems?: EstimateLineItem[];
 	
@@ -179,6 +180,7 @@ export namespace database {
 	        this.markupPercent = source["markupPercent"];
 	        this.miscCharge = source["miscCharge"];
 	        this.archived = source["archived"];
+	        this.pdfRevision = source["pdfRevision"];
 	        this.sortOrder = source["sortOrder"];
 	        this.lineItems = this.convertValues(source["lineItems"], EstimateLineItem);
 	    }
@@ -201,6 +203,155 @@ export namespace database {
 		    return a;
 		}
 	}
+	
+	export class InvoicePayment {
+	    id: number;
+	    invoiceId: number;
+	    amount: number;
+	    // Go type: time
+	    paymentDate: any;
+	    method: string;
+	    cardType: string;
+	    checkNumber: string;
+	    // Go type: time
+	    createdAt: any;
+	    // Go type: time
+	    updatedAt: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new InvoicePayment(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.invoiceId = source["invoiceId"];
+	        this.amount = source["amount"];
+	        this.paymentDate = this.convertValues(source["paymentDate"], null);
+	        this.method = source["method"];
+	        this.cardType = source["cardType"];
+	        this.checkNumber = source["checkNumber"];
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class InvoiceLineItem {
+	    id: number;
+	    invoiceId: number;
+	    itemName: string;
+	    description: string;
+	    lineTotal: number;
+	    sortOrder: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new InvoiceLineItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.invoiceId = source["invoiceId"];
+	        this.itemName = source["itemName"];
+	        this.description = source["description"];
+	        this.lineTotal = source["lineTotal"];
+	        this.sortOrder = source["sortOrder"];
+	    }
+	}
+	export class Invoice {
+	    id: number;
+	    invoiceNumber: string;
+	    sourceQuoteId?: number;
+	    customerId?: number;
+	    customer?: Customer;
+	    jobName: string;
+	    status: string;
+	    // Go type: time
+	    invoiceDate: any;
+	    // Go type: time
+	    dueDate: any;
+	    notes: string;
+	    lineItems?: InvoiceLineItem[];
+	    payments?: InvoicePayment[];
+	    subtotal: number;
+	    tax: number;
+	    total: number;
+	    amountPaid: number;
+	    balanceDue: number;
+	    archived: boolean;
+	    pdfRevision: number;
+	    sortOrder: number;
+	    // Go type: time
+	    createdAt: any;
+	    // Go type: time
+	    updatedAt: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new Invoice(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.invoiceNumber = source["invoiceNumber"];
+	        this.sourceQuoteId = source["sourceQuoteId"];
+	        this.customerId = source["customerId"];
+	        this.customer = this.convertValues(source["customer"], Customer);
+	        this.jobName = source["jobName"];
+	        this.status = source["status"];
+	        this.invoiceDate = this.convertValues(source["invoiceDate"], null);
+	        this.dueDate = this.convertValues(source["dueDate"], null);
+	        this.notes = source["notes"];
+	        this.lineItems = this.convertValues(source["lineItems"], InvoiceLineItem);
+	        this.payments = this.convertValues(source["payments"], InvoicePayment);
+	        this.subtotal = source["subtotal"];
+	        this.tax = source["tax"];
+	        this.total = source["total"];
+	        this.amountPaid = source["amountPaid"];
+	        this.balanceDue = source["balanceDue"];
+	        this.archived = source["archived"];
+	        this.pdfRevision = source["pdfRevision"];
+	        this.sortOrder = source["sortOrder"];
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	
 	export class ManualQuoteLineItem {
 	    id: number;
@@ -247,6 +398,7 @@ export namespace database {
 	    creditCardNote: string;
 	    signatureNote: string;
 	    archived: boolean;
+	    pdfRevision: number;
 	    sortOrder: number;
 	    // Go type: time
 	    createdAt: any;
@@ -280,6 +432,7 @@ export namespace database {
 	        this.creditCardNote = source["creditCardNote"];
 	        this.signatureNote = source["signatureNote"];
 	        this.archived = source["archived"];
+	        this.pdfRevision = source["pdfRevision"];
 	        this.sortOrder = source["sortOrder"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
@@ -407,6 +560,121 @@ export namespace types {
 	        this.markupPercent = source["markupPercent"];
 	        this.miscCharge = source["miscCharge"];
 	    }
+	}
+	export class InvoicePaymentRequest {
+	    amount: number;
+	    // Go type: time
+	    paymentDate: any;
+	    method: string;
+	    cardType: string;
+	    checkNumber: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new InvoicePaymentRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.amount = source["amount"];
+	        this.paymentDate = this.convertValues(source["paymentDate"], null);
+	        this.method = source["method"];
+	        this.cardType = source["cardType"];
+	        this.checkNumber = source["checkNumber"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class InvoiceLineItemRequest {
+	    itemName: string;
+	    description: string;
+	    lineTotal: number;
+	    sortOrder: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new InvoiceLineItemRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.itemName = source["itemName"];
+	        this.description = source["description"];
+	        this.lineTotal = source["lineTotal"];
+	        this.sortOrder = source["sortOrder"];
+	    }
+	}
+	export class CreateInvoiceRequest {
+	    sourceQuoteId?: number;
+	    customerId?: number;
+	    jobName: string;
+	    status: string;
+	    // Go type: time
+	    invoiceDate: any;
+	    // Go type: time
+	    dueDate: any;
+	    notes: string;
+	    lineItems: InvoiceLineItemRequest[];
+	    payments: InvoicePaymentRequest[];
+	    subtotal: number;
+	    tax: number;
+	    total: number;
+	    amountPaid: number;
+	    balanceDue: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateInvoiceRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sourceQuoteId = source["sourceQuoteId"];
+	        this.customerId = source["customerId"];
+	        this.jobName = source["jobName"];
+	        this.status = source["status"];
+	        this.invoiceDate = this.convertValues(source["invoiceDate"], null);
+	        this.dueDate = this.convertValues(source["dueDate"], null);
+	        this.notes = source["notes"];
+	        this.lineItems = this.convertValues(source["lineItems"], InvoiceLineItemRequest);
+	        this.payments = this.convertValues(source["payments"], InvoicePaymentRequest);
+	        this.subtotal = source["subtotal"];
+	        this.tax = source["tax"];
+	        this.total = source["total"];
+	        this.amountPaid = source["amountPaid"];
+	        this.balanceDue = source["balanceDue"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class CreateLineItemRequest {
 	    jobId: number;
@@ -669,6 +937,64 @@ export namespace types {
 	    }
 	}
 	
+	export class InvoicePageRequest {
+	    page: number;
+	    pageSize: number;
+	    search: string;
+	    status: string;
+	    showArchived: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new InvoicePageRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
+	        this.search = source["search"];
+	        this.status = source["status"];
+	        this.showArchived = source["showArchived"];
+	    }
+	}
+	export class InvoicePageResponse {
+	    items: database.Invoice[];
+	    total: number;
+	    page: number;
+	    pageSize: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new InvoicePageResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.items = this.convertValues(source["items"], database.Invoice);
+	        this.total = source["total"];
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	
 	export class ManualQuotePageRequest {
 	    page: number;
 	    pageSize: number;
@@ -804,6 +1130,66 @@ export namespace types {
 	        this.markupPercent = source["markupPercent"];
 	        this.miscCharge = source["miscCharge"];
 	    }
+	}
+	export class UpdateInvoiceRequest {
+	    id: number;
+	    sourceQuoteId?: number;
+	    customerId?: number;
+	    jobName: string;
+	    status: string;
+	    // Go type: time
+	    invoiceDate: any;
+	    // Go type: time
+	    dueDate: any;
+	    notes: string;
+	    lineItems: InvoiceLineItemRequest[];
+	    payments: InvoicePaymentRequest[];
+	    subtotal: number;
+	    tax: number;
+	    total: number;
+	    amountPaid: number;
+	    balanceDue: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateInvoiceRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.sourceQuoteId = source["sourceQuoteId"];
+	        this.customerId = source["customerId"];
+	        this.jobName = source["jobName"];
+	        this.status = source["status"];
+	        this.invoiceDate = this.convertValues(source["invoiceDate"], null);
+	        this.dueDate = this.convertValues(source["dueDate"], null);
+	        this.notes = source["notes"];
+	        this.lineItems = this.convertValues(source["lineItems"], InvoiceLineItemRequest);
+	        this.payments = this.convertValues(source["payments"], InvoicePaymentRequest);
+	        this.subtotal = source["subtotal"];
+	        this.tax = source["tax"];
+	        this.total = source["total"];
+	        this.amountPaid = source["amountPaid"];
+	        this.balanceDue = source["balanceDue"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class UpdateLineItemRequest {
 	    id: number;

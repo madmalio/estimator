@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { FileText, Clipboard, Search, Settings, Users, List, LayoutDashboard } from 'lucide-react';
+import { FileText, Clipboard, Search, Settings, Users, List, LayoutDashboard, ReceiptText } from 'lucide-react';
 import { SearchGlobal } from '../../../wailsjs/go/main/App';
 import type { GlobalSearchResult } from '../../types';
 import type { ViewType } from './Sidebar';
@@ -28,6 +28,7 @@ const navCommands: NavCommand[] = [
   { key: 'dashboard', label: 'Go to Dashboard', subtitle: 'View pipeline and recent records', view: 'dashboard' },
   { key: 'customers', label: 'Go to Customers', subtitle: 'View customer list', view: 'customers' },
   { key: 'manualquotes', label: 'Go to Proposals', subtitle: 'View proposal list', view: 'manualquotes' },
+  { key: 'invoices', label: 'Go to Invoices', subtitle: 'View invoice list', view: 'invoices' },
   { key: 'estimates', label: 'Go to Custom Cabinets', subtitle: 'View custom cabinet list', view: 'estimates' },
   { key: 'pricelist', label: 'Go to Price Lists', subtitle: 'View price list categories', view: 'pricelist' },
   { key: 'settings', label: 'Go to Settings', subtitle: 'View app settings', view: 'settings' },
@@ -40,7 +41,7 @@ function normalizeResult(result: {
   subtitle: string;
   meta: string;
 }): GlobalSearchResult | null {
-  if (result.type !== 'customer' && result.type !== 'proposal' && result.type !== 'estimate') {
+  if (result.type !== 'customer' && result.type !== 'proposal' && result.type !== 'estimate' && result.type !== 'invoice') {
     return null;
   }
 
@@ -61,6 +62,8 @@ function iconForView(view: ViewType) {
       return <Users size={16} className="text-zinc-300" />;
     case 'manualquotes':
       return <Clipboard size={16} className="text-zinc-300" />;
+    case 'invoices':
+      return <ReceiptText size={16} className="text-zinc-300" />;
     case 'estimates':
       return <FileText size={16} className="text-zinc-300" />;
     case 'pricelist':
@@ -78,6 +81,8 @@ function iconForResult(type: GlobalSearchResult['type']) {
       return <Users size={16} className="text-zinc-300" />;
     case 'proposal':
       return <Clipboard size={16} className="text-zinc-300" />;
+    case 'invoice':
+      return <ReceiptText size={16} className="text-zinc-300" />;
     case 'estimate':
       return <FileText size={16} className="text-zinc-300" />;
     default:
@@ -242,7 +247,7 @@ export function GlobalCommandBar({ isOpen, onOpenChange, activeView, onNavigate,
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={handleListKeydown}
-              placeholder="Search customers, proposals, and custom cabinets..."
+              placeholder="Search customers, proposals, invoices, and custom cabinets..."
               className="h-9 w-full bg-transparent text-zinc-100 outline-none placeholder:text-zinc-500"
             />
             <span className="rounded border border-zinc-700 px-1.5 py-0.5 text-xs text-zinc-400">Esc</span>
