@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import {
@@ -470,6 +470,121 @@ export function ProposalsView({
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
 
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const formRef = useRef<ManualQuoteFormState>(defaultForm);
+  const currentQuoteRef = useRef<ManualQuote | null>(null);
+  const savedFormJsonRef = useRef<string | null>(null);
+  const hasHydratedRef = useRef(false);
+  const skipNextAutosaveRef = useRef(false);
+  const persistQuoteRef = useRef<(formState: ManualQuoteFormState) => Promise<boolean>>(
+    () => Promise.resolve(false),
+  );
+
+  const clearAutosaveTimer = () => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+  };
+
+  const buildQuotePayload = (formState: ManualQuoteFormState) => {
+    const quote = currentQuoteRef.current;
+    if (!quote) return null;
+
+    return new wailsTypes.UpdateManualQuoteRequest({
+      id: quote.id,
+      customerId: formState.customerId || undefined,
+      jobName: formState.jobName.trim(),
+      status: formState.status,
+      descriptionBody: stringifyQuoteMeta(
+        formState.notes,
+        formState.includeTotals,
+        formState.paymentSchedule,
+      ),
+      lineItems: formState.lineItems.map((item, index) => ({
+        itemName: item.itemName,
+        description: item.description,
+        lineTotal: item.lineTotal,
+        sortOrder: index,
+      })),
+      subtotal: formState.subtotal,
+      tax: formState.tax,
+      total: formState.total,
+      depositPercent: formState.depositPercent,
+      depositAmount: formState.depositAmount,
+      amountDue: formState.amountDue,
+      termsBlock1: proposalDefaults.termsBlock1,
+      termsBlock2: proposalDefaults.termsBlock2,
+      paymentsNote: proposalDefaults.paymentsNote,
+      creditCardNote: proposalDefaults.creditCardNote,
+      signatureNote: proposalDefaults.signatureNote,
+    });
+  };
+
+  const persistQuote = async (formState: ManualQuoteFormState): Promise<boolean> => {
+    const quote = currentQuoteRef.current;
+    if (!quote) return false;
+
+    const payload = buildQuotePayload(formState);
+    if (!payload) return false;
+
+    try {
+      const updated = (await UpdateManualQuote(payload)) as ManualQuote | null;
+      if (updated) {
+        currentQuoteRef.current = updated;
+        setCurrentQuote(updated);
+        savedFormJsonRef.current = JSON.stringify(formState);
+      }
+      return true;
+    } catch (error) {
+      console.error("Failed to autosave proposal:", error);
+      return false;
+    }
+  };
+  persistQuoteRef.current = persistQuote;
+
+  const flushAutosave = async () => {
+    clearAutosaveTimer();
+    if (!hasHydratedRef.current) return;
+    if (!currentQuoteRef.current) return;
+    const json = JSON.stringify(formRef.current);
+    if (savedFormJsonRef.current === json) return;
+    await persistQuoteRef.current(formRef.current);
+  };
+
+  const scheduleAutosave = () => {
+    clearAutosaveTimer();
+    autosaveTimerRef.current = setTimeout(() => {
+      void flushAutosave();
+    }, 1000);
+  };
+
+  useEffect(() => {
+    formRef.current = form;
+    currentQuoteRef.current = currentQuote;
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
+      savedFormJsonRef.current = JSON.stringify(form);
+      return;
+    }
+    if (!hasHydratedRef.current || !currentQuote) return;
+    if (savedFormJsonRef.current === JSON.stringify(form)) return;
+    scheduleAutosave();
+    return () => clearAutosaveTimer();
+  }, [form, currentQuote]);
+
+  useEffect(() => {
+    return () => {
+      clearAutosaveTimer();
+      if (hasHydratedRef.current && currentQuoteRef.current) {
+        const json = JSON.stringify(formRef.current);
+        if (savedFormJsonRef.current !== json) {
+          void persistQuoteRef.current(formRef.current);
+        }
+      }
+    };
+  }, []);
+
   const selectedCustomer = useMemo(
     () => customers.find((customer) => customer.id === form.customerId),
     [customers, form.customerId],
@@ -703,6 +818,8 @@ export function ProposalsView({
         }
         setForm(nextForm);
         setIsCreatingProposal(true);
+        hasHydratedRef.current = true;
+        skipNextAutosaveRef.current = true;
       }
       setViewMode("edit");
       const defaultRate = taxRates.find((r) => r.isDefault);
@@ -750,6 +867,8 @@ export function ProposalsView({
           );
         }
         setForm(nextForm);
+        hasHydratedRef.current = true;
+        skipNextAutosaveRef.current = true;
 
         // Try to find a matching tax rate
         const matchingRate = taxRates.find(
@@ -779,53 +898,22 @@ export function ProposalsView({
       return false;
     }
 
-    const payload = new wailsTypes.UpdateManualQuoteRequest({
-      id: currentQuote.id,
-      customerId: form.customerId || undefined,
-      jobName: form.jobName.trim(),
-      status: form.status,
-      descriptionBody: stringifyQuoteMeta(
-        form.notes,
-        form.includeTotals,
-        form.paymentSchedule,
-      ),
-      lineItems: form.lineItems.map((item, index) => ({
-        itemName: item.itemName,
-        description: item.description,
-        lineTotal: item.lineTotal,
-        sortOrder: index,
-      })),
-      subtotal: form.subtotal,
-      tax: form.tax,
-      total: form.total,
-      depositPercent: form.depositPercent,
-      depositAmount: form.depositAmount,
-      amountDue: form.amountDue,
-      termsBlock1: proposalDefaults.termsBlock1,
-      termsBlock2: proposalDefaults.termsBlock2,
-      paymentsNote: proposalDefaults.paymentsNote,
-      creditCardNote: proposalDefaults.creditCardNote,
-      signatureNote: proposalDefaults.signatureNote,
-    });
-
-    try {
-      const updated = await UpdateManualQuote(payload);
-      const quote = (updated as ManualQuote) || null;
-      setCurrentQuote(quote);
-      setIsCreatingProposal(false);
-      if (quote) {
-        setForm(quoteToForm(quote));
-      }
-      await fetchQuotesPage();
-      if (showSuccessToast) {
-        showToast("Proposal saved", "success");
-      }
-      return true;
-    } catch (error) {
-      console.error("Failed to save manual quote:", error);
-      showToast("Failed to save manual quote", "error");
+    clearAutosaveTimer();
+    const ok = await persistQuote(form);
+    if (!ok) {
+      showToast("Failed to save proposal", "error");
       return false;
     }
+
+    setIsCreatingProposal(false);
+    const nextForm = quoteToForm(currentQuoteRef.current!);
+    setForm(nextForm);
+    savedFormJsonRef.current = JSON.stringify(nextForm);
+    await fetchQuotesPage();
+    if (showSuccessToast) {
+      showToast("Proposal saved", "success");
+    }
+    return true;
   };
 
   const handlePrintQuote = async () => {
@@ -1027,6 +1115,7 @@ export function ProposalsView({
   const handleCancelNewProposal = async () => {
     if (!currentQuote || !isCreatingProposal) return;
 
+    clearAutosaveTimer();
     try {
       await DeleteManualQuote(currentQuote.id);
       setCurrentQuote(null);
@@ -1661,11 +1750,14 @@ export function ProposalsView({
             <Button
               variant="ghost"
               onClick={() => {
-                setCurrentQuote(null);
-                setIsCreatingProposal(false);
-                setForm(defaultForm);
-                setDraftNote(defaultDraftNote);
-                setViewMode("list");
+                void (async () => {
+                  await flushAutosave();
+                  setCurrentQuote(null);
+                  setIsCreatingProposal(false);
+                  setForm(defaultForm);
+                  setDraftNote(defaultDraftNote);
+                  setViewMode("list");
+                })();
               }}
             >
               <ChevronLeft size={16} className="mr-1" />

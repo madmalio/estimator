@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Plus, Printer, Save, ChevronLeft, Trash2, FileText, Copy, Archive, ArchiveRestore, MoreVertical } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -70,6 +70,16 @@ interface EstimateGeneratorProps {
 
 const customCabinetStatuses = ['draft', 'quoted', 'approved', 'in-progress', 'installed', 'closed'] as const;
 
+interface EstimateAutosaveFields {
+  jobName: string;
+  customerId: number;
+  markupPercent: number;
+  installQty: number;
+  installRate: number;
+  miscCharge: number;
+  status: string;
+}
+
 export function EstimateGenerator({
   quickCreateForCustomer,
   onQuickCreateHandled,
@@ -102,8 +112,99 @@ const [searchTerm, setSearchTerm] = useState('');
   const [lastHandledOpenToken, setLastHandledOpenToken] = useState<number | null>(null);
   const [lastHandledStatusToken, setLastHandledStatusToken] = useState<number | null>(null);
   const [isCreatingCustomCabinet, setIsCreatingCustomCabinet] = useState(false);
-  const [loading, setLoading] = useState(true);
+const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
+
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentEstimateRef = useRef<EstimateJob | null>(null);
+  const savedFieldsJsonRef = useRef<string | null>(null);
+  const hasHydratedRef = useRef(false);
+  const skipNextAutosaveRef = useRef(false);
+  const fieldsRef = useRef<EstimateAutosaveFields>({
+    jobName: '',
+    customerId: 0,
+    markupPercent: 0,
+    installQty: 0,
+    installRate: 0,
+    miscCharge: 0,
+    status: 'draft',
+  });
+  const persistEstimateRef = useRef<(fields: EstimateAutosaveFields) => Promise<boolean>>(
+    () => Promise.resolve(false),
+  );
+
+  const clearAutosaveTimer = () => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+  };
+
+  const captureFields = (): EstimateAutosaveFields => ({
+    jobName,
+    customerId: selectedCustomerId,
+    markupPercent,
+    installQty,
+    installRate,
+    miscCharge,
+    status: currentEstimate?.status || 'draft',
+  });
+
+  const persistEstimate = async (fields: EstimateAutosaveFields): Promise<boolean> => {
+    const estimate = currentEstimateRef.current;
+    if (!estimate) return false;
+
+    const subtotal = (estimate.lineItems || []).reduce(
+      (sum, item) => sum + item.lineTotal,
+      0,
+    );
+    const markupAmountRaw = subtotal * (fields.markupPercent / 100);
+    const markupAmount = markupAmountRaw > 0 ? Math.ceil(markupAmountRaw / 5) * 5 : 0;
+    const installTotal = fields.installQty * fields.installRate;
+    const grandTotalRaw = subtotal + markupAmount + installTotal + fields.miscCharge;
+    const grandTotal = grandTotalRaw > 0 ? Math.ceil(grandTotalRaw / 5) * 5 : 0;
+
+    try {
+      const updated = (await UpdateEstimate({
+        jobId: estimate.jobId,
+        customerId: fields.customerId,
+        jobName: fields.jobName.trim(),
+        status: fields.status,
+        totalAmount: grandTotal,
+        installTotal: installTotal,
+        installQty: fields.installQty,
+        installRate: fields.installRate,
+        markupPercent: fields.markupPercent,
+        miscCharge: fields.miscCharge,
+      })) as EstimateJob | null;
+      if (updated) {
+        currentEstimateRef.current = updated;
+        setCurrentEstimate(updated);
+        savedFieldsJsonRef.current = JSON.stringify(fields);
+      }
+      return true;
+    } catch (error) {
+      console.error('Failed to autosave estimate:', error);
+      return false;
+    }
+  };
+  persistEstimateRef.current = persistEstimate;
+
+  const flushEstimateAutosave = async () => {
+    clearAutosaveTimer();
+    if (!hasHydratedRef.current) return;
+    if (!currentEstimateRef.current) return;
+    const json = JSON.stringify(fieldsRef.current);
+    if (savedFieldsJsonRef.current === json) return;
+    await persistEstimateRef.current(fieldsRef.current);
+  };
+
+  const scheduleEstimateAutosave = () => {
+    clearAutosaveTimer();
+    autosaveTimerRef.current = setTimeout(() => {
+      void flushEstimateAutosave();
+    }, 1000);
+  };
 
   // Form state for new estimate
   const [selectedCustomerId, setSelectedCustomerId] = useState<number>(0);
@@ -124,6 +225,32 @@ const [searchTerm, setSearchTerm] = useState('');
   const [installQty, setInstallQty] = useState(0);
   const [installRate, setInstallRate] = useState(0);
   const [miscCharge, setMiscCharge] = useState(0);
+
+  useEffect(() => {
+    fieldsRef.current = captureFields();
+    currentEstimateRef.current = currentEstimate;
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
+      savedFieldsJsonRef.current = JSON.stringify(fieldsRef.current);
+      return;
+    }
+    if (!hasHydratedRef.current || !currentEstimate) return;
+    if (savedFieldsJsonRef.current === JSON.stringify(fieldsRef.current)) return;
+    scheduleEstimateAutosave();
+    return () => clearAutosaveTimer();
+  }, [jobName, selectedCustomerId, markupPercent, installQty, installRate, miscCharge, currentEstimate]);
+
+  useEffect(() => {
+    return () => {
+      clearAutosaveTimer();
+      if (hasHydratedRef.current && currentEstimateRef.current) {
+        const json = JSON.stringify(fieldsRef.current);
+        if (savedFieldsJsonRef.current !== json) {
+          void persistEstimateRef.current(fieldsRef.current);
+        }
+      }
+    };
+  }, []);
 
   const fetchStaticData = async () => {
     try {
@@ -218,8 +345,10 @@ useEffect(() => {
             setInstallQty(1);
           }
         }
-        setMiscCharge(estimate.miscCharge);
+setMiscCharge(estimate.miscCharge);
         setViewMode('edit');
+        hasHydratedRef.current = true;
+        skipNextAutosaveRef.current = true;
       }
     } catch (error) {
       console.error('Failed to load estimate:', error);
@@ -248,6 +377,8 @@ const handleCreateDraftEstimate = async (customerIdOverride?: number, jobNameOve
         setCurrentEstimate(estimate);
         setIsCreatingCustomCabinet(true);
         setViewMode('edit');
+        hasHydratedRef.current = true;
+        skipNextAutosaveRef.current = true;
         await fetchEstimatesPage();
         showToast('Estimate created', 'success');
       }
@@ -319,37 +450,23 @@ const handleCreateDraftEstimate = async (customerIdOverride?: number, jobNameOve
     onStatusRequestHandled?.();
   }, [statusRequest, loading, lastHandledStatusToken, onStatusRequestHandled]);
 
-  const handleSaveEstimate = async (showSuccessMessage = true) => {
+const handleSaveEstimate = async (showSuccessMessage = true) => {
     if (!currentEstimate) return;
     if (!jobName.trim()) {
       showToast('Job name is required', 'error');
       return;
     }
 
-    try {
-      const updatedEstimate = await UpdateEstimate({
-        jobId: currentEstimate.jobId,
-        customerId: selectedCustomerId,
-        jobName: jobName.trim(),
-        status: currentEstimate.status || 'draft',
-        totalAmount: grandTotal,
-        installTotal: installTotal,
-        installQty,
-        installRate,
-        markupPercent,
-        miscCharge,
-      });
-      if (updatedEstimate) {
-        setCurrentEstimate(updatedEstimate);
-      }
-      setIsCreatingCustomCabinet(false);
-      await fetchEstimatesPage();
-      if (showSuccessMessage) {
-        showToast('Estimate saved', 'success');
-      }
-    } catch (error) {
-      console.error('Failed to save estimate:', error);
+    clearAutosaveTimer();
+    const ok = await persistEstimate(captureFields());
+    if (!ok) {
       showToast('Failed to save estimate', 'error');
+      return;
+    }
+    setIsCreatingCustomCabinet(false);
+    await fetchEstimatesPage();
+    if (showSuccessMessage) {
+      showToast('Estimate saved', 'success');
     }
   };
 
@@ -595,9 +712,10 @@ const handleDuplicateEstimate = async (jobId: number) => {
     }, 60);
   };
 
-  const handleCancelNewCustomCabinet = async () => {
+const handleCancelNewCustomCabinet = async () => {
     if (!currentEstimate || !isCreatingCustomCabinet) return;
 
+    clearAutosaveTimer();
     try {
       await DeleteEstimate(currentEstimate.jobId);
       resetForm();
@@ -999,8 +1117,11 @@ const handleDuplicateEstimate = async (jobId: number) => {
               className="no-print"
               variant="ghost"
               onClick={() => {
-                resetForm();
-                setViewMode('list');
+                void (async () => {
+                  await flushEstimateAutosave();
+                  resetForm();
+                  setViewMode('list');
+                })();
               }}
             >
               <ChevronLeft size={16} className="mr-1" />
