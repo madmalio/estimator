@@ -130,6 +130,7 @@ type Invoice struct {
 	InvoiceDate   time.Time         `json:"invoiceDate"`
 	DueDate       time.Time         `json:"dueDate"`
 	Notes         string            `gorm:"type:text" json:"notes"`
+	InvoiceNotes  string            `gorm:"type:text" json:"invoiceNotes"`
 	LineItems     []InvoiceLineItem `gorm:"foreignKey:InvoiceID" json:"lineItems,omitempty"`
 	Payments      []InvoicePayment  `gorm:"foreignKey:InvoiceID" json:"payments,omitempty"`
 	Subtotal      float64           `json:"subtotal"`

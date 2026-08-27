@@ -192,6 +192,7 @@ func (s *InvoiceService) Create(req types.CreateInvoiceRequest) (*database.Invoi
 		InvoiceDate:   req.InvoiceDate,
 		DueDate:       req.DueDate,
 		Notes:         req.Notes,
+		InvoiceNotes:  req.InvoiceNotes,
 		Subtotal:      req.Subtotal,
 		Tax:           req.Tax,
 		Total:         req.Total,
@@ -241,6 +242,7 @@ func (s *InvoiceService) Update(req types.UpdateInvoiceRequest) (*database.Invoi
 	invoice.InvoiceDate = req.InvoiceDate
 	invoice.DueDate = req.DueDate
 	invoice.Notes = req.Notes
+	invoice.InvoiceNotes = req.InvoiceNotes
 	invoice.Subtotal = req.Subtotal
 	invoice.Tax = req.Tax
 	invoice.Total = req.Total
@@ -330,6 +332,7 @@ func (s *InvoiceService) Duplicate(id uint) (*database.Invoice, error) {
 		InvoiceDate:   time.Now(),
 		DueDate:       time.Now().AddDate(0, 0, 14),
 		Notes:         original.Notes,
+		InvoiceNotes:  original.InvoiceNotes,
 		LineItems:     lineItems,
 		Subtotal:      original.Subtotal,
 		Tax:           original.Tax,

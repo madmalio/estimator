@@ -199,6 +199,7 @@ export interface Invoice {
   invoiceDate: string;
   dueDate: string;
   notes: string;
+  invoiceNotes: string;
   lineItems?: InvoiceLineItem[];
   payments?: InvoicePayment[];
   subtotal: number;
@@ -259,6 +260,7 @@ export interface CreateInvoiceRequest {
   invoiceDate: string;
   dueDate: string;
   notes: string;
+  invoiceNotes: string;
   lineItems: InvoiceLineItemRequest[];
   payments: InvoicePaymentRequest[];
   subtotal: number;

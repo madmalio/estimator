@@ -290,6 +290,7 @@ export namespace database {
 	    // Go type: time
 	    dueDate: any;
 	    notes: string;
+	    invoiceNotes: string;
 	    lineItems?: InvoiceLineItem[];
 	    payments?: InvoicePayment[];
 	    subtotal: number;
@@ -321,6 +322,7 @@ export namespace database {
 	        this.invoiceDate = this.convertValues(source["invoiceDate"], null);
 	        this.dueDate = this.convertValues(source["dueDate"], null);
 	        this.notes = source["notes"];
+	        this.invoiceNotes = source["invoiceNotes"];
 	        this.lineItems = this.convertValues(source["lineItems"], InvoiceLineItem);
 	        this.payments = this.convertValues(source["payments"], InvoicePayment);
 	        this.subtotal = source["subtotal"];
@@ -632,6 +634,7 @@ export namespace types {
 	    // Go type: time
 	    dueDate: any;
 	    notes: string;
+	    invoiceNotes: string;
 	    lineItems: InvoiceLineItemRequest[];
 	    payments: InvoicePaymentRequest[];
 	    subtotal: number;
@@ -653,6 +656,7 @@ export namespace types {
 	        this.invoiceDate = this.convertValues(source["invoiceDate"], null);
 	        this.dueDate = this.convertValues(source["dueDate"], null);
 	        this.notes = source["notes"];
+	        this.invoiceNotes = source["invoiceNotes"];
 	        this.lineItems = this.convertValues(source["lineItems"], InvoiceLineItemRequest);
 	        this.payments = this.convertValues(source["payments"], InvoicePaymentRequest);
 	        this.subtotal = source["subtotal"];
@@ -1146,6 +1150,7 @@ export namespace types {
 	    // Go type: time
 	    dueDate: any;
 	    notes: string;
+	    invoiceNotes: string;
 	    lineItems: InvoiceLineItemRequest[];
 	    payments: InvoicePaymentRequest[];
 	    subtotal: number;
@@ -1168,6 +1173,7 @@ export namespace types {
 	        this.invoiceDate = this.convertValues(source["invoiceDate"], null);
 	        this.dueDate = this.convertValues(source["dueDate"], null);
 	        this.notes = source["notes"];
+	        this.invoiceNotes = source["invoiceNotes"];
 	        this.lineItems = this.convertValues(source["lineItems"], InvoiceLineItemRequest);
 	        this.payments = this.convertValues(source["payments"], InvoicePaymentRequest);
 	        this.subtotal = source["subtotal"];

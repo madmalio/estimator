@@ -1,8 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import type { DraggableAttributes } from "@dnd-kit/core";
-import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import {
-  Plus,
   ChevronLeft,
   Trash2,
   Save,
@@ -13,8 +10,6 @@ import {
   ArchiveRestore,
   MoreVertical,
 } from "lucide-react";
-import { SortableList } from "../dnd/SortableList";
-import { DragHandle } from "../dnd/DragHandle";
 import { Button } from "../ui/Button";
 import { Card, CardContent, CardHeader } from "../ui/Card";
 import { Input } from "../ui/Input";
@@ -44,7 +39,6 @@ import {
   GetInvoicesPage,
   GetInvoice,
   GetCompanySettings,
-  CreateInvoice,
   UpdateInvoice,
   DeleteInvoice,
   DuplicateInvoice,
@@ -77,6 +71,7 @@ interface InvoiceFormState {
   invoiceDate: string;
   dueDate: string;
   notes: string;
+  invoiceNotes: string;
   lineItems: EditableLineItem[];
   payments: EditablePayment[];
   subtotal: number;
@@ -92,32 +87,6 @@ interface EditableLineItem extends InvoiceLineItemRequest {
 
 interface EditablePayment extends InvoicePaymentRequest {
   clientId: string;
-}
-
-interface SortableEditableRowProps {
-  listeners?: SyntheticListenerMap;
-  attributes?: DraggableAttributes;
-  showDragHandle?: boolean;
-}
-
-interface LineItemEditorRowProps extends SortableEditableRowProps {
-  item: EditableLineItem;
-  index: number;
-  onUpdateLineItem: (
-    index: number,
-    key: "itemName" | "description" | "lineTotal",
-    value: string,
-  ) => void;
-  onRemoveLineItem: (index: number) => void;
-  onPreventNumberArrowAdjust: (
-    event: React.KeyboardEvent<HTMLInputElement>,
-  ) => void;
-}
-
-interface DraftLineItemState {
-  itemName: string;
-  description: string;
-  lineTotal: string;
 }
 
 interface DraftPaymentState {
@@ -233,14 +202,6 @@ function dateInputToISO(value: string): string {
   return isNaN(date.getTime()) ? "" : date.toISOString();
 }
 
-function addDaysInputValue(value: string, days: number): string {
-  if (!value) return value;
-  const date = new Date(`${value}T00:00:00`);
-  if (isNaN(date.getTime())) return value;
-  date.setDate(date.getDate() + days);
-  return dateToInputValue(date);
-}
-
 const defaultForm: InvoiceFormState = {
   customerId: 0,
   jobName: "",
@@ -248,6 +209,7 @@ const defaultForm: InvoiceFormState = {
   invoiceDate: todayInputValue(),
   dueDate: "",
   notes: "",
+  invoiceNotes: "",
   lineItems: [],
   payments: [],
   subtotal: 0,
@@ -255,12 +217,6 @@ const defaultForm: InvoiceFormState = {
   total: 0,
   amountPaid: 0,
   balanceDue: 0,
-};
-
-const defaultDraftLineItem: DraftLineItemState = {
-  itemName: "",
-  description: "",
-  lineTotal: "",
 };
 
 const defaultDraftPayment: DraftPaymentState = {
@@ -274,63 +230,6 @@ const defaultDraftPayment: DraftPaymentState = {
 
 function createClientId(prefix: "item" | "payment"): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function LineItemEditorRow({
-  item,
-  index,
-  onUpdateLineItem,
-  onRemoveLineItem,
-  onPreventNumberArrowAdjust,
-  listeners,
-  attributes,
-  showDragHandle = false,
-}: LineItemEditorRowProps) {
-  return (
-    <div className="px-3 py-2 bg-zinc-900/40 rounded">
-      <div className="grid grid-cols-[32px_1fr_44px] gap-2 items-start">
-        <div className="pt-2 flex justify-center">
-          {showDragHandle ? (
-            <DragHandle listeners={listeners} attributes={attributes} />
-          ) : null}
-        </div>
-        <div className="space-y-2">
-          <div className="grid grid-cols-[1fr_120px] gap-2">
-            <Input
-              value={item.itemName}
-              onChange={(e) =>
-                onUpdateLineItem(index, "itemName", e.target.value)
-              }
-            />
-            <Input
-              type="number"
-              step="0.01"
-              value={item.lineTotal || ""}
-              onKeyDown={onPreventNumberArrowAdjust}
-              onChange={(e) =>
-                onUpdateLineItem(index, "lineTotal", e.target.value)
-              }
-              className="text-right"
-            />
-          </div>
-          <textarea
-            rows={2}
-            value={item.description}
-            onChange={(e) =>
-              onUpdateLineItem(index, "description", e.target.value)
-            }
-            placeholder="Description"
-            className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
-          />
-        </div>
-        <div className="pt-2 flex justify-center">
-          <Button variant="ghost" onClick={() => onRemoveLineItem(index)}>
-            <Trash2 size={14} className="text-red-500" />
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function invoiceToForm(invoice: Invoice): InvoiceFormState {
@@ -373,6 +272,7 @@ function invoiceToForm(invoice: Invoice): InvoiceFormState {
     invoiceDate: toDateInputValue(invoice.invoiceDate) || todayInputValue(),
     dueDate: toDateInputValue(invoice.dueDate),
     notes: invoice.notes || "",
+    invoiceNotes: invoice.invoiceNotes || "",
     lineItems: (invoice.lineItems || [])
       .slice()
       .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
@@ -408,10 +308,7 @@ export function InvoicesView({
   const [companySettings, setCompanySettings] =
     useState<CompanySettings | null>(null);
   const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(null);
-  const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
   const [form, setForm] = useState<InvoiceFormState>(defaultForm);
-  const [draftLineItem, setDraftLineItem] =
-    useState<DraftLineItemState>(defaultDraftLineItem);
   const [draftPayment, setDraftPayment] =
     useState<DraftPaymentState>(defaultDraftPayment);
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
@@ -469,6 +366,7 @@ export function InvoicesView({
       invoiceDate: invoiceDateIso,
       dueDate: dueDateIso,
       notes: formState.notes,
+      invoiceNotes: formState.invoiceNotes,
       lineItems: formState.lineItems.map((item, index) => ({
         itemName: item.itemName,
         description: item.description,
@@ -697,51 +595,6 @@ export function InvoicesView({
     void fetchInvoicesPage();
   }, [currentPage, searchTerm, statusFilter, showArchived, viewMode, pageSize]);
 
-  const handleCreateInvoice = async () => {
-    try {
-      const today = todayInputValue();
-      const created = await CreateInvoice(
-        new wailsTypes.CreateInvoiceRequest({
-          customerId: undefined,
-          jobName: "",
-          status: defaultForm.status,
-          invoiceDate: dateInputToISO(today),
-          dueDate: dateInputToISO(addDaysInputValue(today, 14)),
-          notes: "",
-          lineItems: [],
-          payments: [],
-          subtotal: defaultForm.subtotal,
-          tax: defaultForm.tax,
-          total: defaultForm.total,
-          amountPaid: defaultForm.amountPaid,
-          balanceDue: defaultForm.balanceDue,
-        }),
-      );
-
-      const invoice = (created as Invoice) || null;
-      setCurrentInvoice(invoice);
-      if (invoice) {
-        const nextForm = invoiceToForm(invoice);
-        setForm(nextForm);
-        setIsCreatingInvoice(true);
-        hasHydratedRef.current = true;
-        skipNextAutosaveRef.current = true;
-      }
-      setViewMode("edit");
-      const defaultRate = taxRates.find((r) => r.isDefault);
-      if (defaultRate) {
-        setSelectedTaxRateId(defaultRate.id.toString());
-      } else {
-        setSelectedTaxRateId("");
-      }
-      await fetchInvoicesPage();
-      showToast("Invoice created", "success");
-    } catch (error) {
-      console.error("Failed to create invoice:", error);
-      showToast("Failed to create invoice", "error");
-    }
-  };
-
   const handleCreateCustomer = async (data: CreateCustomerRequest) => {
     try {
       const created = (await CreateCustomer({
@@ -783,7 +636,6 @@ export function InvoicesView({
           setSelectedTaxRateId("");
         }
       }
-      setIsCreatingInvoice(false);
       setViewMode("edit");
     } catch (error) {
       console.error("Failed to load invoice:", error);
@@ -805,7 +657,6 @@ export function InvoicesView({
       return false;
     }
 
-    setIsCreatingInvoice(false);
     const nextForm = invoiceToForm(currentInvoiceRef.current!);
     setForm(nextForm);
     savedFormJsonRef.current = JSON.stringify(nextForm);
@@ -872,65 +723,10 @@ export function InvoicesView({
       }
 
       setCurrentInvoice(null);
-      setIsCreatingInvoice(false);
       setForm(defaultForm);
-      setDraftLineItem(defaultDraftLineItem);
         setDraftPayment(defaultDraftPayment);
       setViewMode("list");
     }, 60);
-  };
-
-  const handleAddLineItem = () => {
-    if (!draftLineItem.itemName.trim() && !draftLineItem.description.trim()) {
-      showToast("Enter an item name or description", "error");
-      return;
-    }
-
-    const lineTotal = parseFloat(draftLineItem.lineTotal) || 0;
-
-    setForm((prev) => ({
-      ...prev,
-      lineItems: [
-        ...prev.lineItems,
-        {
-          clientId: createClientId("item"),
-          itemName: draftLineItem.itemName.trim(),
-          description: draftLineItem.description.trim(),
-          lineTotal,
-          sortOrder: prev.lineItems.length,
-        },
-      ],
-    }));
-    setDraftLineItem(defaultDraftLineItem);
-        setDraftPayment(defaultDraftPayment);
-  };
-
-  const updateLineItem = (
-    index: number,
-    key: "itemName" | "description" | "lineTotal",
-    value: string,
-  ) => {
-    setForm((prev) => ({
-      ...prev,
-      lineItems: prev.lineItems.map((item, itemIndex) => {
-        if (itemIndex !== index) return item;
-
-        if (key === "lineTotal") {
-          return { ...item, lineTotal: parseFloat(value) || 0 };
-        }
-
-        return { ...item, [key]: value };
-      }),
-    }));
-  };
-
-  const removeLineItem = (index: number) => {
-    setForm((prev) => ({
-      ...prev,
-      lineItems: prev.lineItems
-        .filter((_, itemIndex) => itemIndex !== index)
-        .map((item, itemIndex) => ({ ...item, sortOrder: itemIndex })),
-    }));
   };
 
   const handleAddPayment = () => {
@@ -980,39 +776,9 @@ export function InvoicesView({
     }));
   };
 
-  const reorderLineItems = (items: EditableLineItem[]) => {
-    setForm((prev) => ({
-      ...prev,
-      lineItems: items.map((item, itemIndex) => ({
-        ...item,
-        sortOrder: itemIndex,
-      })),
-    }));
-  };
-
   const openDeleteModal = (invoice: Invoice) => {
     setInvoiceToDelete(invoice);
     setIsDeleteModalOpen(true);
-  };
-
-  const handleCancelNewInvoice = async () => {
-    if (!currentInvoice || !isCreatingInvoice) return;
-
-    clearAutosaveTimer();
-    try {
-      await DeleteInvoice(currentInvoice.id);
-      setCurrentInvoice(null);
-      setIsCreatingInvoice(false);
-      setForm(defaultForm);
-      setDraftLineItem(defaultDraftLineItem);
-        setDraftPayment(defaultDraftPayment);
-      setViewMode("list");
-      await fetchInvoicesPage();
-      showToast("Invoice cancelled", "success");
-    } catch (error) {
-      console.error("Failed to cancel invoice:", error);
-      showToast("Failed to cancel invoice", "error");
-    }
   };
 
   const preventNumberArrowAdjust = (
@@ -1049,9 +815,7 @@ export function InvoicesView({
       await DeleteInvoice(invoiceToDelete.id);
       if (currentInvoice?.id === invoiceToDelete.id) {
         setCurrentInvoice(null);
-        setIsCreatingInvoice(false);
         setForm(defaultForm);
-        setDraftLineItem(defaultDraftLineItem);
         setDraftPayment(defaultDraftPayment);
         setViewMode("list");
       }
@@ -1161,10 +925,9 @@ export function InvoicesView({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-zinc-100">Invoices</h2>
-          <Button onClick={() => void handleCreateInvoice()}>
-            <Plus size={16} className="mr-2" />
-            New Invoice
-          </Button>
+          <p className="text-sm text-zinc-400">
+            Invoices are created from proposals.
+          </p>
         </div>
 
         <div className="grid grid-cols-[1fr_180px] gap-2">
@@ -1212,7 +975,7 @@ export function InvoicesView({
                   ? "No invoices match your search."
                   : showArchived
                     ? "No archived invoices yet."
-                    : "No invoices yet. Create one or convert a proposal into an invoice."}
+                    : "No invoices yet. Convert a proposal into an invoice to get started."}
               </p>
             </CardContent>
           </Card>
@@ -1653,6 +1416,17 @@ export function InvoicesView({
                 </div>
               </div>
             )}
+
+            {form.invoiceNotes && (
+              <div className="mt-6">
+                <div className="border-b border-black pb-1 mb-2 text-[13px] font-semibold leading-none">
+                  Invoice Notes
+                </div>
+                <p className="text-[12px] leading-[1.45] whitespace-pre-wrap">
+                  {form.invoiceNotes}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-[1fr_420px] gap-8 mt-16 items-end">
@@ -1699,9 +1473,7 @@ export function InvoicesView({
                 void (async () => {
                   await flushAutosave();
                   setCurrentInvoice(null);
-                  setIsCreatingInvoice(false);
                   setForm(defaultForm);
-                  setDraftLineItem(defaultDraftLineItem);
         setDraftPayment(defaultDraftPayment);
                   setViewMode("list");
                 })();
@@ -1720,14 +1492,6 @@ export function InvoicesView({
             </div>
           </div>
           <div className="flex gap-2">
-            {isCreatingInvoice && (
-              <Button
-                variant="ghost"
-                onClick={() => void handleCancelNewInvoice()}
-              >
-                Cancel
-              </Button>
-            )}
             <Button variant="secondary" onClick={() => void handleSaveInvoice()}>
               <Save size={16} className="mr-2" />
               Save
@@ -1866,83 +1630,39 @@ export function InvoicesView({
                     Line Items
                   </label>
 
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-[1fr_140px_110px] gap-2">
-                      <Input
-                        placeholder="Item"
-                        value={draftLineItem.itemName}
-                        onChange={(e) =>
-                          setDraftLineItem((prev) => ({
-                            ...prev,
-                            itemName: e.target.value,
-                          }))
-                        }
-                      />
-                      <Input
-                        placeholder="Total"
-                        type="number"
-                        step="0.01"
-                        value={draftLineItem.lineTotal}
-                        onKeyDown={preventNumberArrowAdjust}
-                        onChange={(e) =>
-                          setDraftLineItem((prev) => ({
-                            ...prev,
-                            lineTotal: e.target.value,
-                          }))
-                        }
-                      />
-                      <Button onClick={handleAddLineItem}>Add Item</Button>
-                    </div>
-                    <textarea
-                      rows={2}
-                      placeholder="Description"
-                      value={draftLineItem.description}
-                      onChange={(e) =>
-                        setDraftLineItem((prev) => ({
-                          ...prev,
-                          description: e.target.value,
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
-                    />
-                  </div>
-
                   <div className="rounded-lg border border-zinc-700 overflow-hidden">
-                    <div className="grid grid-cols-[28px_1fr_120px_70px] gap-2 px-3 py-2 bg-zinc-800 text-xs uppercase tracking-wide text-zinc-400">
-                      <span></span>
+                    <div className="grid grid-cols-[1fr_120px] gap-2 px-3 py-2 bg-zinc-800 text-xs uppercase tracking-wide text-zinc-400">
                       <span>Item</span>
                       <span className="text-right">Total</span>
-                      <span></span>
                     </div>
 
                     {form.lineItems.length === 0 ? (
                       <div className="px-3 py-4 text-sm text-zinc-500">
-                        No line items yet
+                        No line items
                       </div>
                     ) : (
-                      <SortableList
-                        items={form.lineItems}
-                        onReorder={reorderLineItems}
-                        keyExtractor={(item) => item.clientId}
-                        className="space-y-2 p-2"
-                        renderItem={(item) => {
-                          const index = form.lineItems.findIndex(
-                            (entry) => entry.clientId === item.clientId,
-                          );
-                          return (
-                            <LineItemEditorRow
-                              item={item}
-                              index={index}
-                              showDragHandle
-                              onUpdateLineItem={updateLineItem}
-                              onRemoveLineItem={removeLineItem}
-                              onPreventNumberArrowAdjust={
-                                preventNumberArrowAdjust
-                              }
-                            />
-                          );
-                        }}
-                      />
+                      <div className="divide-y divide-zinc-800">
+                        {form.lineItems.map((item, index) => (
+                          <div
+                            key={item.clientId || index}
+                            className="grid grid-cols-[1fr_120px] gap-2 px-3 py-2"
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-zinc-100">
+                                {item.itemName || "Item"}
+                              </p>
+                              {item.description && (
+                                <p className="text-xs text-zinc-400 whitespace-pre-wrap">
+                                  {item.description}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right text-sm text-zinc-100">
+                              {formatCurrency(item.lineTotal || 0)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -2119,16 +1839,38 @@ export function InvoicesView({
                 <CardHeader>
                   <h3 className="font-semibold text-zinc-100">Notes</h3>
                 </CardHeader>
-                <CardContent>
-                  <textarea
-                    rows={5}
-                    value={form.notes}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, notes: e.target.value }))
-                    }
-                    placeholder="Add notes that will appear on the invoice..."
-                    className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
-                  />
+                <CardContent className="space-y-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-zinc-400 mb-1">
+                      From Proposal
+                    </p>
+                    {form.notes ? (
+                      <p className="text-sm text-zinc-300 whitespace-pre-wrap">
+                        {form.notes}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-zinc-500">
+                        No notes from the proposal.
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-zinc-400 mb-1">
+                      Invoice Notes
+                    </p>
+                    <textarea
+                      rows={4}
+                      value={form.invoiceNotes}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          invoiceNotes: e.target.value,
+                        }))
+                      }
+                      placeholder="Add notes for this invoice..."
+                      className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
+                    />
+                  </div>
                 </CardContent>
               </Card>
 

@@ -149,6 +149,7 @@ type CreateInvoiceRequest struct {
 	InvoiceDate   time.Time                 `json:"invoiceDate"`
 	DueDate       time.Time                 `json:"dueDate"`
 	Notes         string                    `json:"notes"`
+	InvoiceNotes  string                    `json:"invoiceNotes"`
 	LineItems     []InvoiceLineItemRequest  `json:"lineItems"`
 	Payments      []InvoicePaymentRequest   `json:"payments"`
 	Subtotal      float64                   `json:"subtotal"`
@@ -168,6 +169,7 @@ type UpdateInvoiceRequest struct {
 	InvoiceDate   time.Time                `json:"invoiceDate"`
 	DueDate       time.Time                `json:"dueDate"`
 	Notes         string                   `json:"notes"`
+	InvoiceNotes  string                   `json:"invoiceNotes"`
 	LineItems     []InvoiceLineItemRequest `json:"lineItems"`
 	Payments      []InvoicePaymentRequest  `json:"payments"`
 	Subtotal      float64                  `json:"subtotal"`
