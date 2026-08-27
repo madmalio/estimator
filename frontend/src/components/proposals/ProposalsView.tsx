@@ -85,6 +85,8 @@ interface ManualQuoteFormState {
   depositPercent: number;
   depositAmount: number;
   amountDue: number;
+  depositAmountOverride: boolean;
+  amountDueOverride: boolean;
 }
 
 interface QuoteNote {
@@ -173,6 +175,8 @@ const defaultForm: ManualQuoteFormState = {
   depositPercent: 75,
   depositAmount: 0,
   amountDue: 0,
+  depositAmountOverride: false,
+  amountDueOverride: false,
 };
 
 const defaultDraftLineItem: DraftLineItemState = {
@@ -372,6 +376,13 @@ function formatPercentValue(percent: number): string {
 function quoteToForm(quote: ManualQuote): ManualQuoteFormState {
   const meta = parseQuoteMeta(quote.descriptionBody || "");
 
+  const total = quote.total || 0;
+  const depositPercent = quote.depositPercent || 0;
+  const autoDeposit = Number((total * (depositPercent / 100)).toFixed(2));
+  const depositAmount = quote.depositAmount || 0;
+  const autoDue = Number((total - depositAmount).toFixed(2));
+  const amountDue = quote.amountDue || 0;
+
   return {
     customerId: quote.customerId || 0,
     jobName: quote.jobName || "",
@@ -391,10 +402,12 @@ function quoteToForm(quote: ManualQuote): ManualQuoteFormState {
     includeTotals: meta.includeTotals,
     subtotal: quote.subtotal || 0,
     tax: quote.tax || 0,
-    total: quote.total || 0,
-    depositPercent: quote.depositPercent || 0,
-    depositAmount: quote.depositAmount || 0,
-    amountDue: quote.amountDue || 0,
+    total,
+    depositPercent,
+    depositAmount,
+    amountDue,
+    depositAmountOverride: Math.abs(depositAmount - autoDeposit) > 0.01,
+    amountDueOverride: Math.abs(amountDue - autoDue) > 0.01,
   };
 }
 
@@ -531,17 +544,21 @@ export function ProposalsView({
 
   useEffect(() => {
     setForm((prev) =>
-      prev.amountDue === autoAmountDue
+      prev.amountDueOverride
         ? prev
-        : { ...prev, amountDue: autoAmountDue },
+        : prev.amountDue === autoAmountDue
+          ? prev
+          : { ...prev, amountDue: autoAmountDue },
     );
   }, [autoAmountDue]);
 
   useEffect(() => {
     setForm((prev) =>
-      prev.depositAmount === autoDepositAmount
+      prev.depositAmountOverride
         ? prev
-        : { ...prev, depositAmount: autoDepositAmount },
+        : prev.depositAmount === autoDepositAmount
+          ? prev
+          : { ...prev, depositAmount: autoDepositAmount },
     );
   }, [autoDepositAmount]);
 
@@ -1918,28 +1935,84 @@ export function ProposalsView({
                       }))
                     }
                   />
-                  <Input
-                    label="Deposit Amount"
-                    type="number"
-                    step="0.01"
-                    value={
-                      form.depositAmount === 0
-                        ? ""
-                        : form.depositAmount.toFixed(2)
-                    }
-                    onKeyDown={preventNumberArrowAdjust}
-                    readOnly
-                  />
-                  <Input
-                    label="Amount Due"
-                    type="number"
-                    step="0.01"
-                    value={
-                      form.amountDue === 0 ? "" : form.amountDue.toFixed(2)
-                    }
-                    onKeyDown={preventNumberArrowAdjust}
-                    readOnly
-                  />
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-medium text-zinc-300">
+                        Deposit Amount
+                      </label>
+                      {form.depositAmountOverride && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              depositAmountOverride: false,
+                              depositAmount: autoDepositAmount,
+                            }))
+                          }
+                          className="text-xs font-medium text-zinc-400 hover:text-zinc-200 underline"
+                        >
+                          Auto
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={
+                        form.depositAmount === 0
+                          ? ""
+                          : form.depositAmount.toFixed(2)
+                      }
+                      onKeyDown={preventNumberArrowAdjust}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          depositAmount: parseFloat(e.target.value) || 0,
+                          depositAmountOverride: true,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-medium text-zinc-300">
+                        Amount Due
+                      </label>
+                      {form.amountDueOverride && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              amountDueOverride: false,
+                              amountDue: autoAmountDue,
+                            }))
+                          }
+                          className="text-xs font-medium text-zinc-400 hover:text-zinc-200 underline"
+                        >
+                          Auto
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={
+                        form.amountDue === 0 ? "" : form.amountDue.toFixed(2)
+                      }
+                      onKeyDown={preventNumberArrowAdjust}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          amountDue: parseFloat(e.target.value) || 0,
+                          amountDueOverride: true,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
+                    />
+                  </div>
                 </CardContent>
               </Card>
             </div>
