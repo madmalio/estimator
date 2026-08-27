@@ -19,7 +19,7 @@ import { Button } from "../ui/Button";
 import { Card, CardContent, CardHeader } from "../ui/Card";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
-import { StatusBadgeMenu } from "../ui/StatusBadgeMenu";
+import { StatusBadge } from "../ui/StatusBadge";
 import { CustomerCombobox } from "../ui/CustomerCombobox";
 import { CustomerForm } from "../customers/CustomerForm";
 import { Modal } from "../ui/Modal";
@@ -63,6 +63,11 @@ interface InvoicesViewProps {
     token: number;
   } | null;
   onOpenInvoiceHandled?: () => void;
+  statusRequest?: {
+    status: string;
+    token: number;
+  } | null;
+  onStatusRequestHandled?: () => void;
 }
 
 interface InvoiceFormState {
@@ -120,6 +125,7 @@ interface DraftPaymentState {
   paymentDate: string;
   method: string;
   cardType: string;
+  cardLast4: string;
   checkNumber: string;
 }
 
@@ -158,15 +164,53 @@ function cardTypeLabel(cardType: string): string {
 function paymentDetailText(payment: {
   method: string;
   cardType: string;
+  cardLast4: string;
   checkNumber: string;
 }): string {
   if (payment.method === "credit_card") {
-    return cardTypeLabel(payment.cardType);
+    const base = cardTypeLabel(payment.cardType);
+    const last4 = (payment.cardLast4 || "").trim();
+    return last4 ? `${base} •• ${last4}` : base;
   }
   if (payment.method === "check") {
     return payment.checkNumber ? `Check #${payment.checkNumber}` : "";
   }
   return "";
+}
+
+function deriveStatusForDisplay(
+  manualStatus: string,
+  amountPaid: number,
+  balanceDue: number,
+): string {
+  const status = (manualStatus || "unpaid").toLowerCase();
+  if (status === "draft" || status === "void") {
+    return status;
+  }
+  if (balanceDue <= 0.005) {
+    return "paid";
+  }
+  if (amountPaid > 0) {
+    return "partial";
+  }
+  return "unpaid";
+}
+
+function sanitizeCardLast4(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 4);
+}
+
+function isInvoiceOverdue(invoice: Invoice): boolean {
+  if (!(invoice.balanceDue > 0.005)) {
+    return false;
+  }
+  if (["paid", "void", "draft"].includes((invoice.status || "").toLowerCase())) {
+    return false;
+  }
+  if (!invoice.dueDate) {
+    return false;
+  }
+  return new Date(invoice.dueDate).getTime() < Date.now();
 }
 
 function dateToInputValue(date: Date): string {
@@ -224,6 +268,7 @@ const defaultDraftPayment: DraftPaymentState = {
   paymentDate: todayInputValue(),
   method: "credit_card",
   cardType: "visa",
+  cardLast4: "",
   checkNumber: "",
 };
 
@@ -301,6 +346,7 @@ function invoiceToForm(invoice: Invoice): InvoiceFormState {
       paymentDate: toDateInputValue(payment.paymentDate),
       method: payment.method || "cash",
       cardType: payment.cardType || "",
+      cardLast4: payment.cardLast4 || "",
       checkNumber: payment.checkNumber || "",
     }));
 
@@ -314,6 +360,7 @@ function invoiceToForm(invoice: Invoice): InvoiceFormState {
           toDateInputValue(invoice.invoiceDate) || todayInputValue(),
         method: "cash",
         cardType: "",
+        cardLast4: "",
         checkNumber: "",
       },
     ];
@@ -348,6 +395,8 @@ function invoiceToForm(invoice: Invoice): InvoiceFormState {
 export function InvoicesView({
   openInvoiceRecord,
   onOpenInvoiceHandled,
+  statusRequest,
+  onStatusRequestHandled,
 }: InvoicesViewProps) {
   const [pageSize, setPageSize] = useState(10);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
@@ -378,6 +427,9 @@ export function InvoicesView({
     left: number;
   } | null>(null);
   const [lastHandledOpenToken, setLastHandledOpenToken] = useState<
+    number | null
+  >(null);
+  const [lastHandledStatusToken, setLastHandledStatusToken] = useState<
     number | null
   >(null);
   const [loading, setLoading] = useState(true);
@@ -430,6 +482,7 @@ export function InvoicesView({
           dateInputToISO(todayInputValue()),
         method: payment.method,
         cardType: payment.cardType,
+        cardLast4: payment.cardLast4,
         checkNumber: payment.checkNumber,
       })),
       subtotal: formState.subtotal,
@@ -904,6 +957,10 @@ export function InvoicesView({
             draftPayment.method === "credit_card"
               ? draftPayment.cardType
               : "",
+          cardLast4:
+            draftPayment.method === "credit_card"
+              ? sanitizeCardLast4(draftPayment.cardLast4)
+              : "",
           checkNumber:
             draftPayment.method === "check"
               ? draftPayment.checkNumber.trim()
@@ -1036,14 +1093,18 @@ export function InvoicesView({
     }
   };
 
-  const handleListStatusChange = async (invoice: Invoice, status: string) => {
+  const handleManualStatusToggle = async (
+    invoice: Invoice,
+    manual: "draft" | "void",
+  ) => {
+    const next = invoice.status === manual ? "unpaid" : manual;
     setInvoices((prev) =>
       prev.map((entry) =>
-        entry.id === invoice.id ? { ...entry, status } : entry,
+        entry.id === invoice.id ? { ...entry, status: next } : entry,
       ),
     );
     try {
-      await UpdateInvoiceStatus(invoice.id, status);
+      await UpdateInvoiceStatus(invoice.id, next);
       await fetchInvoicesPage();
       showToast("Invoice status updated", "success");
     } catch (error) {
@@ -1052,6 +1113,40 @@ export function InvoicesView({
       await fetchInvoicesPage();
     }
   };
+
+  const toggleFormStatus = (manual: "draft" | "void") => {
+    setForm((prev) => ({
+      ...prev,
+      status: prev.status === manual ? "unpaid" : manual,
+    }));
+  };
+
+  const effectiveStatus = deriveStatusForDisplay(
+    form.status,
+    form.amountPaid,
+    form.balanceDue,
+  );
+
+  useEffect(() => {
+    if (!statusRequest || loading) {
+      return;
+    }
+
+    if (statusRequest.token === lastHandledStatusToken) {
+      return;
+    }
+
+    setLastHandledStatusToken(statusRequest.token);
+    setStatusFilter(statusRequest.status || "all");
+    setCurrentPage(1);
+    setViewMode("list");
+    onStatusRequestHandled?.();
+  }, [
+    statusRequest,
+    loading,
+    lastHandledStatusToken,
+    onStatusRequestHandled,
+  ]);
 
   if (loading) {
     return (
@@ -1087,6 +1182,7 @@ export function InvoicesView({
                 value: status,
                 label: status.charAt(0).toUpperCase() + status.slice(1),
               })),
+              { value: "overdue", label: "Overdue" },
             ]}
           />
         </div>
@@ -1172,21 +1268,66 @@ export function InvoicesView({
                       <td className="px-4 py-3 text-sm text-zinc-400">
                         {invoice.jobName || "-"}
                       </td>
-                      <td className="px-4 py-3 text-sm text-zinc-400">
-                        <StatusBadgeMenu
-                          status={invoice.status}
-                          kind="invoice"
-                          statuses={invoiceStatuses}
-                          onChange={(status) =>
-                            void handleListStatusChange(invoice, status)
-                          }
-                        />
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <StatusBadge status={invoice.status} kind="invoice" />
+                          <button
+                            type="button"
+                            title={
+                              invoice.status === "draft"
+                                ? "Clear draft hold"
+                                : "Hold as draft"
+                            }
+                            className={`rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                              invoice.status === "draft"
+                                ? "border-zinc-500 bg-zinc-700 text-zinc-100"
+                                : "border-zinc-700 text-zinc-500 hover:text-zinc-300"
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleManualStatusToggle(invoice, "draft");
+                            }}
+                          >
+                            Draft
+                          </button>
+                          <button
+                            type="button"
+                            title={
+                              invoice.status === "void"
+                                ? "Unvoid invoice"
+                                : "Void invoice"
+                            }
+                            className={`rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                              invoice.status === "void"
+                                ? "border-zinc-500 bg-zinc-700 text-zinc-100"
+                                : "border-zinc-700 text-zinc-500 hover:text-zinc-300"
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleManualStatusToggle(invoice, "void");
+                            }}
+                          >
+                            Void
+                          </button>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-zinc-400">
                         {formatDate(invoice.invoiceDate)}
                       </td>
-                      <td className="px-4 py-3 text-sm text-zinc-400">
-                        {invoice.dueDate ? formatDate(invoice.dueDate) : "-"}
+                      <td className="px-4 py-3 text-sm">
+                        {invoice.dueDate ? (
+                          <span
+                            className={
+                              isInvoiceOverdue(invoice)
+                                ? "font-medium text-red-400"
+                                : "text-zinc-400"
+                            }
+                          >
+                            {formatDate(invoice.dueDate)}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-400">-</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-zinc-100 text-right">
                         {formatCurrency(invoice.total || 0)}
@@ -1631,18 +1772,46 @@ export function InvoicesView({
                     }
                     placeholder="e.g., Kitchen + Laundry Cabinet Package"
                   />
-                  <Select
-                    label="Status"
-                    value={form.status}
-                    onChange={(value) =>
-                      setForm((prev) => ({ ...prev, status: value }))
-                    }
-                    options={invoiceStatuses.map((status) => ({
-                      value: status,
-                      label:
-                        status.charAt(0).toUpperCase() + status.slice(1),
-                    }))}
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">
+                      Status
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={effectiveStatus} kind="invoice" />
+                      <button
+                        type="button"
+                        title={
+                          form.status === "draft"
+                            ? "Clear draft hold"
+                            : "Hold as draft"
+                        }
+                        className={`rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                          form.status === "draft"
+                            ? "border-zinc-500 bg-zinc-700 text-zinc-100"
+                            : "border-zinc-700 text-zinc-500 hover:text-zinc-300"
+                        }`}
+                        onClick={() => toggleFormStatus("draft")}
+                      >
+                        Draft
+                      </button>
+                      <button
+                        type="button"
+                        title={
+                          form.status === "void"
+                            ? "Unvoid invoice"
+                            : "Void invoice"
+                        }
+                        className={`rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                          form.status === "void"
+                            ? "border-zinc-500 bg-zinc-700 text-zinc-100"
+                            : "border-zinc-700 text-zinc-500 hover:text-zinc-300"
+                        }`}
+                        onClick={() => toggleFormStatus("void")}
+                      >
+                        Void
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
@@ -1847,6 +2016,24 @@ export function InvoicesView({
                           }
                           options={cardTypeOptions}
                         />
+                        <div className="mt-2">
+                          <label className="block text-sm font-medium text-zinc-300 mb-1">
+                            Last 4
+                          </label>
+                          <Input
+                            inputMode="numeric"
+                            maxLength={4}
+                            value={draftPayment.cardLast4}
+                            onChange={(e) =>
+                              setDraftPayment((prev) => ({
+                                ...prev,
+                                cardLast4: sanitizeCardLast4(e.target.value),
+                              }))
+                            }
+                            placeholder="4242"
+                            className="w-24"
+                          />
+                        </div>
                       </>
                     )}
                     {draftPayment.method === "check" && (

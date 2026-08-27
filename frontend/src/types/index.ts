@@ -229,6 +229,7 @@ export interface InvoicePayment {
   paymentDate: string;
   method: string;
   cardType: string;
+  cardLast4: string;
   checkNumber: string;
   createdAt: string;
   updatedAt: string;
@@ -239,6 +240,7 @@ export interface InvoicePaymentRequest {
   paymentDate: string;
   method: string;
   cardType: string;
+  cardLast4: string;
   checkNumber: string;
 }
 

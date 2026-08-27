@@ -189,6 +189,7 @@ type InvoicePaymentRequest struct {
 	PaymentDate time.Time `json:"paymentDate"`
 	Method      string    `json:"method"`
 	CardType    string    `json:"cardType"`
+	CardLast4   string    `json:"cardLast4"`
 	CheckNumber string    `json:"checkNumber"`
 }
 

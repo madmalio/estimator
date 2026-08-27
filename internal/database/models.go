@@ -160,6 +160,7 @@ type InvoicePayment struct {
 	PaymentDate time.Time `json:"paymentDate"`
 	Method      string    `gorm:"not null;default:'cash'" json:"method"`
 	CardType    string    `json:"cardType"`
+	CardLast4   string    `json:"cardLast4"`
 	CheckNumber string    `json:"checkNumber"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`

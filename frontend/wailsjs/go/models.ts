@@ -212,6 +212,7 @@ export namespace database {
 	    paymentDate: any;
 	    method: string;
 	    cardType: string;
+	    cardLast4: string;
 	    checkNumber: string;
 	    // Go type: time
 	    createdAt: any;
@@ -230,6 +231,7 @@ export namespace database {
 	        this.paymentDate = this.convertValues(source["paymentDate"], null);
 	        this.method = source["method"];
 	        this.cardType = source["cardType"];
+	        this.cardLast4 = source["cardLast4"];
 	        this.checkNumber = source["checkNumber"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
@@ -567,6 +569,7 @@ export namespace types {
 	    paymentDate: any;
 	    method: string;
 	    cardType: string;
+	    cardLast4: string;
 	    checkNumber: string;
 	
 	    static createFrom(source: any = {}) {
@@ -579,6 +582,7 @@ export namespace types {
 	        this.paymentDate = this.convertValues(source["paymentDate"], null);
 	        this.method = source["method"];
 	        this.cardType = source["cardType"];
+	        this.cardLast4 = source["cardLast4"];
 	        this.checkNumber = source["checkNumber"];
 	    }
 	

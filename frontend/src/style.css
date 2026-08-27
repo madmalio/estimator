@@ -120,6 +120,12 @@ body {
   color: #fda4af;
 }
 
+.status-badge--overdue {
+  border-color: rgba(244, 63, 94, 0.55);
+  background-color: rgba(244, 63, 94, 0.2);
+  color: #fda4af;
+}
+
 html.light .status-badge--draft {
   border-color: rgba(82, 82, 91, 0.45);
   background-color: rgba(212, 212, 216, 0.5);
@@ -151,6 +157,12 @@ html.light .status-badge--closed {
 }
 
 html.light .status-badge--declined {
+  border-color: rgba(225, 29, 72, 0.45);
+  background-color: rgba(255, 228, 230, 0.95);
+  color: #9f1239;
+}
+
+html.light .status-badge--overdue {
   border-color: rgba(225, 29, 72, 0.45);
   background-color: rgba(255, 228, 230, 0.95);
   color: #9f1239;

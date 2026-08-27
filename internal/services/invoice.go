@@ -35,6 +35,20 @@ func normalizePaymentMethod(method string) string {
 	}
 }
 
+func deriveInvoiceStatus(currentStatus string, amountPaid float64, balanceDue float64) string {
+	status := normalizeInvoiceStatus(currentStatus)
+	if status == "draft" || status == "void" {
+		return status
+	}
+	if balanceDue <= 0.005 {
+		return "paid"
+	}
+	if amountPaid > 0 {
+		return "partial"
+	}
+	return "unpaid"
+}
+
 func round2(value float64) float64 {
 	return math.Round(value*100) / 100
 }
@@ -84,7 +98,13 @@ func (s *InvoiceService) GetPage(req types.InvoicePageRequest) (*types.InvoicePa
 	search := strings.TrimSpace(req.Search)
 	status := strings.TrimSpace(strings.ToLower(req.Status))
 	if status != "" && status != "all" {
-		baseQuery = baseQuery.Where("LOWER(invoices.status) = ?", status)
+		if status == "overdue" {
+			baseQuery = baseQuery.Where(
+				"invoices.balance_due > 0 AND invoices.status NOT IN ('paid','void','draft') AND strftime('%Y-%m-%d', invoices.due_date) < strftime('%Y-%m-%d', 'now')",
+			)
+		} else {
+			baseQuery = baseQuery.Where("LOWER(invoices.status) = ?", status)
+		}
 	}
 	if search != "" {
 		like := "%" + strings.ToLower(search) + "%"
@@ -123,7 +143,13 @@ func (s *InvoiceService) GetPage(req types.InvoicePageRequest) (*types.InvoicePa
 	}
 
 	if status != "" && status != "all" {
-		listQuery = listQuery.Where("LOWER(invoices.status) = ?", status)
+		if status == "overdue" {
+			listQuery = listQuery.Where(
+				"invoices.balance_due > 0 AND invoices.status NOT IN ('paid','void','draft') AND strftime('%Y-%m-%d', invoices.due_date) < strftime('%Y-%m-%d', 'now')",
+			)
+		} else {
+			listQuery = listQuery.Where("LOWER(invoices.status) = ?", status)
+		}
 	}
 
 	if err := listQuery.Order("invoices.sort_order DESC, invoices.invoice_date DESC").
@@ -194,6 +220,7 @@ func (s *InvoiceService) Create(req types.CreateInvoiceRequest) (*database.Invoi
 
 	invoice.AmountPaid = sumPayments(req.Payments)
 	invoice.BalanceDue = round2(invoice.Total - invoice.AmountPaid)
+	invoice.Status = deriveInvoiceStatus(invoice.Status, invoice.AmountPaid, invoice.BalanceDue)
 	invoice.InvoiceNumber = fmt.Sprintf("INV-%04d", invoice.ID)
 	if err := s.db.Save(&invoice).Error; err != nil {
 		return nil, err
@@ -219,6 +246,7 @@ func (s *InvoiceService) Update(req types.UpdateInvoiceRequest) (*database.Invoi
 	invoice.Total = req.Total
 	invoice.AmountPaid = sumPayments(req.Payments)
 	invoice.BalanceDue = round2(invoice.Total - invoice.AmountPaid)
+	invoice.Status = deriveInvoiceStatus(req.Status, invoice.AmountPaid, invoice.BalanceDue)
 
 	if err := s.db.Save(&invoice).Error; err != nil {
 		return nil, err
@@ -244,9 +272,21 @@ func (s *InvoiceService) UpdateArchived(id uint, archived bool) (*database.Invoi
 }
 
 func (s *InvoiceService) UpdateStatus(id uint, status string) (*database.Invoice, error) {
+	var invoice database.Invoice
+	if err := s.db.Preload("Payments").First(&invoice, id).Error; err != nil {
+		return nil, err
+	}
+
+	var totalPaid float64
+	for _, payment := range invoice.Payments {
+		totalPaid += payment.Amount
+	}
+	totalPaid = round2(totalPaid)
+	balanceDue := round2(invoice.Total - totalPaid)
+
 	if err := s.db.Model(&database.Invoice{}).
 		Where("id = ?", id).
-		Update("status", normalizeInvoiceStatus(status)).Error; err != nil {
+		Update("status", deriveInvoiceStatus(status, totalPaid, balanceDue)).Error; err != nil {
 		return nil, err
 	}
 	return s.GetByID(id)
@@ -410,6 +450,7 @@ func (s *InvoiceService) replaceInvoicePayments(invoiceID uint, payments []types
 				PaymentDate: payment.PaymentDate,
 				Method:      normalizePaymentMethod(payment.Method),
 				CardType:    payment.CardType,
+				CardLast4:   payment.CardLast4,
 				CheckNumber: payment.CheckNumber,
 			}
 

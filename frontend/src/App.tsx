@@ -58,8 +58,9 @@ const [openProposalRecord, setOpenProposalRecord] = useState<OpenRecordState | n
   const [openInvoiceRecord, setOpenInvoiceRecord] = useState<OpenRecordState | null>(null);
   const [openEstimateRecord, setOpenEstimateRecord] = useState<OpenRecordState | null>(null);
   const [customerSearchRequest, setCustomerSearchRequest] = useState<CustomerSearchState | null>(null);
-  const [proposalStatusRequest, setProposalStatusRequest] = useState<StatusFilterRequestState | null>(null);
+const [proposalStatusRequest, setProposalStatusRequest] = useState<StatusFilterRequestState | null>(null);
   const [estimateStatusRequest, setEstimateStatusRequest] = useState<StatusFilterRequestState | null>(null);
+  const [invoiceStatusRequest, setInvoiceStatusRequest] = useState<StatusFilterRequestState | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -151,10 +152,16 @@ const openProposalRecordById = (id: number) => {
     setActiveView('manualquotes');
   };
 
-  const openEstimateStatus = (status: string) => {
+const openEstimateStatus = (status: string) => {
     const token = Date.now();
     setEstimateStatusRequest({ status, token });
     setActiveView('estimates');
+  };
+
+  const openInvoiceStatus = (status: string) => {
+    const token = Date.now();
+    setInvoiceStatusRequest({ status, token });
+    setActiveView('invoices');
   };
 
   if (isAppLoading) {
@@ -176,14 +183,17 @@ const openProposalRecordById = (id: number) => {
         onOpenResult={handleOpenSearchResult}
       />
       <main className="flex-1 p-6 overflow-auto">
-        {activeView === 'dashboard' && (
+{activeView === 'dashboard' && (
           <DashboardView
             onOpenProposals={() => setActiveView('manualquotes')}
             onOpenEstimates={() => setActiveView('estimates')}
+            onOpenInvoices={() => setActiveView('invoices')}
             onOpenProposal={openProposalRecordById}
             onOpenEstimate={openEstimateRecordById}
+            onOpenInvoice={openInvoiceRecordById}
             onOpenProposalStatus={openProposalStatus}
             onOpenEstimateStatus={openEstimateStatus}
+            onOpenInvoiceStatus={openInvoiceStatus}
           />
         )}
         {activeView === 'estimates' && (
@@ -207,12 +217,15 @@ const openProposalRecordById = (id: number) => {
             onInvoiceCreated={(invoiceId) => {
               openInvoiceRecordById(invoiceId);
             }}
+            onOpenInvoice={openInvoiceRecordById}
           />
         )}
         {activeView === 'invoices' && (
           <InvoicesView
             openInvoiceRecord={openInvoiceRecord}
             onOpenInvoiceHandled={() => setOpenInvoiceRecord(null)}
+            statusRequest={invoiceStatusRequest}
+            onStatusRequestHandled={() => setInvoiceStatusRequest(null)}
           />
         )}
         {activeView === 'customers' && (

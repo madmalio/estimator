@@ -35,6 +35,7 @@ import type {
   Customer,
   CreateCustomerRequest,
   EstimateJob,
+  Invoice,
   ManualQuote,
   ManualQuoteLineItem,
   ManualQuoteLineItemRequest,
@@ -54,6 +55,7 @@ import {
   UpdateManualQuoteArchived,
   UpdateManualQuoteStatus,
   CreateInvoiceFromProposal,
+  GetInvoicesPage,
   GetAllTaxRates,
   GetAllEstimates,
   GenerateProposalPDF,
@@ -82,6 +84,7 @@ interface ProposalsViewProps {
   } | null;
   onStatusRequestHandled?: () => void;
   onInvoiceCreated?: (invoiceId: number) => void;
+  onOpenInvoice?: (invoiceId: number) => void;
 }
 
 interface ManualQuoteFormState {
@@ -432,6 +435,7 @@ export function ProposalsView({
   statusRequest,
   onStatusRequestHandled,
   onInvoiceCreated,
+  onOpenInvoice,
 }: ProposalsViewProps) {
   const [pageSize, setPageSize] = useState(10);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
@@ -439,6 +443,7 @@ export function ProposalsView({
   const [totalQuotes, setTotalQuotes] = useState(0);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [estimates, setEstimates] = useState<EstimateJob[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
   const [selectedTaxRateId, setSelectedTaxRateId] = useState<string>("");
   const [companySettings, setCompanySettings] =
@@ -663,6 +668,15 @@ export function ProposalsView({
     () => Number((form.total - form.depositAmount).toFixed(2)),
     [form.total, form.depositAmount],
   );
+  const invoiceByQuoteId = useMemo(() => {
+    const map = new Map<number, Invoice>();
+    for (const invoice of invoices) {
+      if (invoice.sourceQuoteId && !map.has(invoice.sourceQuoteId)) {
+        map.set(invoice.sourceQuoteId, invoice);
+      }
+    }
+    return map;
+  }, [invoices]);
   const totalPages = Math.max(1, Math.ceil(totalQuotes / pageSize));
 
   useEffect(() => {
@@ -723,12 +737,19 @@ export function ProposalsView({
 
   const fetchStaticData = async () => {
     try {
-      const [customersData, companySettingsData, taxRatesData, estimatesData] =
+      const [customersData, companySettingsData, taxRatesData, estimatesData, invoicesData] =
         await Promise.all([
           GetAllCustomers(),
           GetCompanySettings(),
           GetAllTaxRates(),
           GetAllEstimates(),
+          GetInvoicesPage({
+            page: 1,
+            pageSize: 1000,
+            search: "",
+            status: "all",
+            showArchived: false,
+          }),
         ]);
       setCustomers((customersData || []) as Customer[]);
       setCompanySettings(
@@ -736,6 +757,7 @@ export function ProposalsView({
       );
       setTaxRates((taxRatesData || []) as TaxRate[]);
       setEstimates((estimatesData || []) as EstimateJob[]);
+      setInvoices((invoicesData?.items || []) as Invoice[]);
     } catch (error) {
       console.error("Failed to fetch manual quote data:", error);
       showToast("Failed to fetch manual quote data", "error");
@@ -1425,6 +1447,23 @@ export function ProposalsView({
                         >
                           <Copy size={14} className="text-zinc-400" />
                         </Button>
+                        {(() => {
+                          const linkedInvoice = invoiceByQuoteId.get(quote.id);
+                          if (!linkedInvoice) return null;
+                          return (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenInvoice?.(linkedInvoice.id);
+                              }}
+                              title="Open linked invoice"
+                            >
+                              <ReceiptText size={14} className="text-zinc-400" />
+                            </Button>
+                          );
+                        })()}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1519,6 +1558,17 @@ export function ProposalsView({
                   onClick: () =>
                     void handleCreateInvoiceFromQuote(menuQuote),
                 },
+                ...(() => {
+                  const linkedInvoice = invoiceByQuoteId.get(menuQuote.id);
+                  if (!linkedInvoice) return [];
+                  return [
+                    {
+                      label: "View Invoice",
+                      icon: <ReceiptText size={14} />,
+                      onClick: () => onOpenInvoice?.(linkedInvoice.id),
+                    },
+                  ];
+                })(),
                 {
                   label: menuQuote.archived ? "Restore" : "Archive",
                   icon: menuQuote.archived ? (

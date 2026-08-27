@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleDashed, CircleX, Hammer, Send, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CircleDashed, CircleX, Hammer, Send, ShieldCheck } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 type StatusKind = 'proposal' | 'estimate' | 'invoice';
@@ -22,6 +22,13 @@ function toLabel(status: string) {
 
 function styleFor(status: string, kind: StatusKind) {
   const value = normalize(status);
+
+  if (value === 'overdue') {
+    return {
+      className: 'status-badge--overdue',
+      icon: <AlertTriangle size={12} />,
+    };
+  }
 
   if (value === 'approved') {
     return {
