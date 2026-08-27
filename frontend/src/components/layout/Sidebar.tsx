@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FileText, Users, List, Settings, Clipboard, ChevronLeft, ChevronRight, Search, LayoutDashboard, ReceiptText } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { APP_VERSION } from '../../lib/version';
 
 export type ViewType = 'dashboard' | 'estimates' | 'manualquotes' | 'invoices' | 'customers' | 'pricelist' | 'settings';
 
@@ -108,7 +109,7 @@ export function Sidebar({ activeView, onViewChange, onOpenSearch }: SidebarProps
       </div>
 
       <div className="px-4 py-3 border-t border-zinc-800">
-        <p className={cn('text-zinc-500', isCollapsed ? 'text-[10px] text-center' : 'text-xs')}>v1.1.0</p>
+        <p className={cn('text-zinc-500', isCollapsed ? 'text-[10px] text-center' : 'text-xs')}>v{APP_VERSION}</p>
       </div>
     </aside>
   );
