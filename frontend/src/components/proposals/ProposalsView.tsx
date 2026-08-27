@@ -22,6 +22,7 @@ import { Modal } from "../ui/Modal";
 import { useToast } from "../ui/Toast";
 import { formatCurrency, formatDate } from "../../lib/utils";
 import { buildPrintDocumentHtml } from "../../lib/printHtml";
+import { printHtmlInHiddenFrame } from "../../lib/framePrint";
 import type {
   CompanySettings,
   Customer,
@@ -773,7 +774,14 @@ export function ProposalsView({
   const handlePrintQuote = async () => {
     const saved = await handleSaveQuote(false);
     if (!saved) return;
-    window.print();
+
+    try {
+      const printHtml = buildPrintDocumentHtml();
+      await printHtmlInHiddenFrame(printHtml);
+    } catch (error) {
+      console.error("Failed to print proposal:", error);
+      showToast("Failed to open print dialog", "error");
+    }
   };
 
   const handleSaveProposalPDF = async () => {
@@ -809,18 +817,20 @@ export function ProposalsView({
   const handleQuickPrintQuote = async (id: number) => {
     await handleLoadQuote(id);
 
-    setTimeout(() => {
-      const handleAfterPrint = () => {
-        window.removeEventListener("afterprint", handleAfterPrint);
-        setCurrentQuote(null);
-        setIsCreatingProposal(false);
-        setForm(defaultForm);
-        setDraftNote(defaultDraftNote);
-        setViewMode("list");
-      };
+    setTimeout(async () => {
+      try {
+        const printHtml = buildPrintDocumentHtml();
+        await printHtmlInHiddenFrame(printHtml);
+      } catch (error) {
+        console.error("Failed to quick print proposal:", error);
+        showToast("Failed to open print dialog", "error");
+      }
 
-      window.addEventListener("afterprint", handleAfterPrint);
-      window.print();
+      setCurrentQuote(null);
+      setIsCreatingProposal(false);
+      setForm(defaultForm);
+      setDraftNote(defaultDraftNote);
+      setViewMode("list");
     }, 60);
   };
 

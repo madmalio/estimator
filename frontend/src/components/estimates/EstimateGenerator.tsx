@@ -12,6 +12,7 @@ import { LineItemTable } from './LineItemTable';
 import { TotalsCard } from './TotalsCard';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { buildPrintDocumentHtml } from '../../lib/printHtml';
+import { printHtmlInHiddenFrame } from '../../lib/framePrint';
 import type {
   CompanySettings,
   Customer,
@@ -480,7 +481,13 @@ export function EstimateGenerator({
     // Save first so printed totals and details are persisted
     await handleSaveEstimate(false);
 
-    window.print();
+    try {
+      const printHtml = buildPrintDocumentHtml();
+      await printHtmlInHiddenFrame(printHtml);
+    } catch (error) {
+      console.error('Failed to print estimate:', error);
+      showToast('Failed to open print dialog', 'error');
+    }
   };
 
   const handleSaveEstimatePDF = async () => {
@@ -512,15 +519,17 @@ export function EstimateGenerator({
   const handleQuickPrintEstimate = async (jobId: number) => {
     await loadEstimate(jobId);
 
-    setTimeout(() => {
-      const handleAfterPrint = () => {
-        window.removeEventListener('afterprint', handleAfterPrint);
-        resetForm();
-        setViewMode('list');
-      };
+    setTimeout(async () => {
+      try {
+        const printHtml = buildPrintDocumentHtml();
+        await printHtmlInHiddenFrame(printHtml);
+      } catch (error) {
+        console.error('Failed to quick print estimate:', error);
+        showToast('Failed to open print dialog', 'error');
+      }
 
-      window.addEventListener('afterprint', handleAfterPrint);
-      window.print();
+      resetForm();
+      setViewMode('list');
     }, 60);
   };
 
