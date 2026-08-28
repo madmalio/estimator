@@ -287,8 +287,6 @@ export namespace database {
 	    status: string;
 	    // Go type: time
 	    invoiceDate: any;
-	    // Go type: time
-	    dueDate: any;
 	    notes: string;
 	    invoiceNotes: string;
 	    lineItems?: InvoiceLineItem[];
@@ -320,7 +318,6 @@ export namespace database {
 	        this.jobName = source["jobName"];
 	        this.status = source["status"];
 	        this.invoiceDate = this.convertValues(source["invoiceDate"], null);
-	        this.dueDate = this.convertValues(source["dueDate"], null);
 	        this.notes = source["notes"];
 	        this.invoiceNotes = source["invoiceNotes"];
 	        this.lineItems = this.convertValues(source["lineItems"], InvoiceLineItem);
@@ -631,8 +628,6 @@ export namespace types {
 	    status: string;
 	    // Go type: time
 	    invoiceDate: any;
-	    // Go type: time
-	    dueDate: any;
 	    notes: string;
 	    invoiceNotes: string;
 	    lineItems: InvoiceLineItemRequest[];
@@ -654,7 +649,6 @@ export namespace types {
 	        this.jobName = source["jobName"];
 	        this.status = source["status"];
 	        this.invoiceDate = this.convertValues(source["invoiceDate"], null);
-	        this.dueDate = this.convertValues(source["dueDate"], null);
 	        this.notes = source["notes"];
 	        this.invoiceNotes = source["invoiceNotes"];
 	        this.lineItems = this.convertValues(source["lineItems"], InvoiceLineItemRequest);
@@ -1147,8 +1141,6 @@ export namespace types {
 	    status: string;
 	    // Go type: time
 	    invoiceDate: any;
-	    // Go type: time
-	    dueDate: any;
 	    notes: string;
 	    invoiceNotes: string;
 	    lineItems: InvoiceLineItemRequest[];
@@ -1171,7 +1163,6 @@ export namespace types {
 	        this.jobName = source["jobName"];
 	        this.status = source["status"];
 	        this.invoiceDate = this.convertValues(source["invoiceDate"], null);
-	        this.dueDate = this.convertValues(source["dueDate"], null);
 	        this.notes = source["notes"];
 	        this.invoiceNotes = source["invoiceNotes"];
 	        this.lineItems = this.convertValues(source["lineItems"], InvoiceLineItemRequest);

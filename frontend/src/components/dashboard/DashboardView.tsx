@@ -21,7 +21,7 @@ interface DashboardViewProps {
 }
 
 const proposalStatuses = ['draft', 'sent', 'approved', 'declined', 'closed'] as const;
-const invoicePipelineStatuses = ['unpaid', 'partial', 'paid', 'overdue'] as const;
+const invoicePipelineStatuses = ['unpaid', 'partial', 'paid'] as const;
 
 function normalizeStatus(status: string | undefined) {
   return (status || 'draft').toLowerCase();
@@ -128,23 +128,6 @@ export function DashboardView({
     }, 0);
   }, [invoices]);
 
-  const overdueCount = useMemo(() => {
-    const now = Date.now();
-    return invoices.filter((invoice) => {
-      const status = normalizeStatus(invoice.status);
-      if (status === 'paid' || status === 'void' || status === 'draft') {
-        return false;
-      }
-      if (!(invoice.balanceDue > 0.005)) {
-        return false;
-      }
-      if (!invoice.dueDate) {
-        return false;
-      }
-      return new Date(invoice.dueDate).getTime() < now;
-    }).length;
-  }, [invoices]);
-
   const recentInvoices = useMemo(() => {
     return [...invoices]
       .sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime())
@@ -234,9 +217,7 @@ export function DashboardView({
                 className="rounded-lg border border-zinc-700 bg-zinc-800/60 p-3 text-left hover:bg-zinc-800"
               >
                 <StatusBadge status={status} kind="invoice" className="text-[10px]" />
-                <p className="mt-1 text-xl font-semibold text-zinc-100">
-                  {status === 'overdue' ? overdueCount : invoiceStatusCounts[status] || 0}
-                </p>
+                <p className="mt-1 text-xl font-semibold text-zinc-100">{invoiceStatusCounts[status] || 0}</p>
               </button>
             ))}
           </CardContent>

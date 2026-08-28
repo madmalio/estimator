@@ -197,7 +197,6 @@ export interface Invoice {
   jobName: string;
   status: string;
   invoiceDate: string;
-  dueDate: string;
   notes: string;
   invoiceNotes: string;
   lineItems?: InvoiceLineItem[];
@@ -258,7 +257,6 @@ export interface CreateInvoiceRequest {
   jobName: string;
   status: string;
   invoiceDate: string;
-  dueDate: string;
   notes: string;
   invoiceNotes: string;
   lineItems: InvoiceLineItemRequest[];

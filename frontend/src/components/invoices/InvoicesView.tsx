@@ -16,7 +16,7 @@ import { Button } from "../ui/Button";
 import { Card, CardContent, CardHeader } from "../ui/Card";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
-import { StatusBadge } from "../ui/StatusBadge";
+import { StatusBadgeMenu } from "../ui/StatusBadgeMenu";
 import { CustomerCombobox } from "../ui/CustomerCombobox";
 import { CustomerForm } from "../customers/CustomerForm";
 import { Modal } from "../ui/Modal";
@@ -73,7 +73,6 @@ interface InvoiceFormState {
   jobName: string;
   status: string;
   invoiceDate: string;
-  dueDate: string;
   notes: string;
   invoiceNotes: EditableInvoiceNote[];
   lineItems: EditableLineItem[];
@@ -195,19 +194,6 @@ function sanitizeCardLast4(value: string): string {
   return value.replace(/\D/g, "").slice(0, 4);
 }
 
-function isInvoiceOverdue(invoice: Invoice): boolean {
-  if (!(invoice.balanceDue > 0.005)) {
-    return false;
-  }
-  if (["paid", "void", "draft"].includes((invoice.status || "").toLowerCase())) {
-    return false;
-  }
-  if (!invoice.dueDate) {
-    return false;
-  }
-  return new Date(invoice.dueDate).getTime() < Date.now();
-}
-
 function dateToInputValue(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
@@ -233,7 +219,6 @@ const defaultForm: InvoiceFormState = {
   jobName: "",
   status: "unpaid",
   invoiceDate: todayInputValue(),
-  dueDate: "",
   notes: "",
   invoiceNotes: [],
   lineItems: [],
@@ -339,7 +324,6 @@ function invoiceToForm(invoice: Invoice): InvoiceFormState {
     jobName: invoice.jobName || "",
     status: invoice.status || "unpaid",
     invoiceDate: toDateInputValue(invoice.invoiceDate) || todayInputValue(),
-    dueDate: toDateInputValue(invoice.dueDate),
     notes: invoice.notes || "",
     invoiceNotes: parseInvoiceNotes(invoice.invoiceNotes || ""),
     lineItems: (invoice.lineItems || [])
@@ -462,7 +446,6 @@ export function InvoicesView({
     const invoiceDateIso =
       dateInputToISO(formState.invoiceDate) ||
       dateInputToISO(todayInputValue());
-    const dueDateIso = dateInputToISO(formState.dueDate) || invoiceDateIso;
 
     return new wailsTypes.UpdateInvoiceRequest({
       id: invoice.id,
@@ -470,7 +453,6 @@ export function InvoicesView({
       jobName: formState.jobName.trim(),
       status: formState.status,
       invoiceDate: invoiceDateIso,
-      dueDate: dueDateIso,
       notes: formState.notes,
       invoiceNotes: stringifyInvoiceNotes(formState.invoiceNotes),
       lineItems: formState.lineItems.map((item, index) => ({
@@ -1007,18 +989,14 @@ export function InvoicesView({
     }
   };
 
-  const handleManualStatusToggle = async (
-    invoice: Invoice,
-    manual: "draft" | "void",
-  ) => {
-    const next = invoice.status === manual ? "unpaid" : manual;
+  const handleStatusChange = async (invoice: Invoice, status: string) => {
     setInvoices((prev) =>
       prev.map((entry) =>
-        entry.id === invoice.id ? { ...entry, status: next } : entry,
+        entry.id === invoice.id ? { ...entry, status } : entry,
       ),
     );
     try {
-      await UpdateInvoiceStatus(invoice.id, next);
+      await UpdateInvoiceStatus(invoice.id, status);
       await fetchInvoicesPage();
       showToast("Invoice status updated", "success");
     } catch (error) {
@@ -1028,10 +1006,10 @@ export function InvoicesView({
     }
   };
 
-  const toggleFormStatus = (manual: "draft" | "void") => {
+  const handleFormStatusChange = (status: string) => {
     setForm((prev) => ({
       ...prev,
-      status: prev.status === manual ? "unpaid" : manual,
+      status,
     }));
   };
 
@@ -1095,7 +1073,6 @@ export function InvoicesView({
                 value: status,
                 label: status.charAt(0).toUpperCase() + status.slice(1),
               })),
-              { value: "overdue", label: "Overdue" },
             ]}
           />
         </div>
@@ -1150,9 +1127,6 @@ export function InvoicesView({
                     <th className="px-4 py-3 text-left text-sm font-medium text-zinc-400">
                       Date
                     </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-zinc-400">
-                      Due
-                    </th>
                     <th className="px-4 py-3 text-right text-sm font-medium text-zinc-400">
                       Total
                     </th>
@@ -1182,65 +1156,17 @@ export function InvoicesView({
                         {invoice.jobName || "-"}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <StatusBadge status={invoice.status} kind="invoice" />
-                          <button
-                            type="button"
-                            title={
-                              invoice.status === "draft"
-                                ? "Clear draft hold"
-                                : "Hold as draft"
-                            }
-                            className={`rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                              invoice.status === "draft"
-                                ? "border-zinc-500 bg-zinc-700 text-zinc-100"
-                                : "border-zinc-700 text-zinc-500 hover:text-zinc-300"
-                            }`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void handleManualStatusToggle(invoice, "draft");
-                            }}
-                          >
-                            Draft
-                          </button>
-                          <button
-                            type="button"
-                            title={
-                              invoice.status === "void"
-                                ? "Unvoid invoice"
-                                : "Void invoice"
-                            }
-                            className={`rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                              invoice.status === "void"
-                                ? "border-zinc-500 bg-zinc-700 text-zinc-100"
-                                : "border-zinc-700 text-zinc-500 hover:text-zinc-300"
-                            }`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void handleManualStatusToggle(invoice, "void");
-                            }}
-                          >
-                            Void
-                          </button>
-                        </div>
+                        <StatusBadgeMenu
+                          status={invoice.status}
+                          kind="invoice"
+                          statuses={invoiceStatuses}
+                          onChange={(status) =>
+                            void handleStatusChange(invoice, status)
+                          }
+                        />
                       </td>
                       <td className="px-4 py-3 text-sm text-zinc-400">
                         {formatDate(invoice.invoiceDate)}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        {invoice.dueDate ? (
-                          <span
-                            className={
-                              isInvoiceOverdue(invoice)
-                                ? "font-medium text-red-400"
-                                : "text-zinc-400"
-                            }
-                          >
-                            {formatDate(invoice.dueDate)}
-                          </span>
-                        ) : (
-                          <span className="text-zinc-400">-</span>
-                        )}
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-zinc-100 text-right">
                         {formatCurrency(invoice.total || 0)}
@@ -1490,12 +1416,6 @@ export function InvoicesView({
                 <span className="font-semibold">Date</span>
                 <span>{form.invoiceDate ? formatDate(dateInputToISO(form.invoiceDate)) : ""}</span>
               </p>
-              {form.dueDate && (
-                <p className="flex justify-between mt-2">
-                  <span className="font-semibold">Due</span>
-                  <span>{formatDate(dateInputToISO(form.dueDate))}</span>
-                </p>
-              )}
               <p className="flex justify-between mt-2">
                 <span className="font-semibold">Job</span>
                 <span>{form.jobName}</span>
@@ -1697,44 +1617,15 @@ export function InvoicesView({
                     <label className="block text-sm font-medium text-zinc-300 mb-1">
                       Status
                     </label>
-                    <div className="flex items-center gap-2">
-                      <StatusBadge status={effectiveStatus} kind="invoice" />
-                      <button
-                        type="button"
-                        title={
-                          form.status === "draft"
-                            ? "Clear draft hold"
-                            : "Hold as draft"
-                        }
-                        className={`rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                          form.status === "draft"
-                            ? "border-zinc-500 bg-zinc-700 text-zinc-100"
-                            : "border-zinc-700 text-zinc-500 hover:text-zinc-300"
-                        }`}
-                        onClick={() => toggleFormStatus("draft")}
-                      >
-                        Draft
-                      </button>
-                      <button
-                        type="button"
-                        title={
-                          form.status === "void"
-                            ? "Unvoid invoice"
-                            : "Void invoice"
-                        }
-                        className={`rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                          form.status === "void"
-                            ? "border-zinc-500 bg-zinc-700 text-zinc-100"
-                            : "border-zinc-700 text-zinc-500 hover:text-zinc-300"
-                        }`}
-                        onClick={() => toggleFormStatus("void")}
-                      >
-                        Void
-                      </button>
-                    </div>
+                    <StatusBadgeMenu
+                      status={effectiveStatus}
+                      kind="invoice"
+                      statuses={invoiceStatuses}
+                      onChange={handleFormStatusChange}
+                    />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-zinc-300 mb-1">
                       Invoice Date
@@ -1746,22 +1637,6 @@ export function InvoicesView({
                         setForm((prev) => ({
                           ...prev,
                           invoiceDate: e.target.value,
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-1">
-                      Due Date
-                    </label>
-                    <input
-                      type="date"
-                      value={form.dueDate}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          dueDate: e.target.value,
                         }))
                       }
                       className="w-full px-3 py-2 border border-zinc-600 rounded-lg shadow-sm bg-zinc-800 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:border-zinc-500"

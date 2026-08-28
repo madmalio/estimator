@@ -147,7 +147,6 @@ type CreateInvoiceRequest struct {
 	JobName       string                    `json:"jobName"`
 	Status        string                    `json:"status"`
 	InvoiceDate   time.Time                 `json:"invoiceDate"`
-	DueDate       time.Time                 `json:"dueDate"`
 	Notes         string                    `json:"notes"`
 	InvoiceNotes  string                    `json:"invoiceNotes"`
 	LineItems     []InvoiceLineItemRequest  `json:"lineItems"`
@@ -167,7 +166,6 @@ type UpdateInvoiceRequest struct {
 	JobName       string                   `json:"jobName"`
 	Status        string                   `json:"status"`
 	InvoiceDate   time.Time                `json:"invoiceDate"`
-	DueDate       time.Time                `json:"dueDate"`
 	Notes         string                   `json:"notes"`
 	InvoiceNotes  string                   `json:"invoiceNotes"`
 	LineItems     []InvoiceLineItemRequest `json:"lineItems"`

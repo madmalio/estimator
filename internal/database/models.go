@@ -128,7 +128,6 @@ type Invoice struct {
 	JobName       string            `json:"jobName"`
 	Status        string            `gorm:"not null;default:'unpaid';index" json:"status"`
 	InvoiceDate   time.Time         `json:"invoiceDate"`
-	DueDate       time.Time         `json:"dueDate"`
 	Notes         string            `gorm:"type:text" json:"notes"`
 	InvoiceNotes  string            `gorm:"type:text" json:"invoiceNotes"`
 	LineItems     []InvoiceLineItem `gorm:"foreignKey:InvoiceID" json:"lineItems,omitempty"`

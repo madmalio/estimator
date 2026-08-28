@@ -98,13 +98,7 @@ func (s *InvoiceService) GetPage(req types.InvoicePageRequest) (*types.InvoicePa
 	search := strings.TrimSpace(req.Search)
 	status := strings.TrimSpace(strings.ToLower(req.Status))
 	if status != "" && status != "all" {
-		if status == "overdue" {
-			baseQuery = baseQuery.Where(
-				"invoices.balance_due > 0 AND invoices.status NOT IN ('paid','void','draft') AND strftime('%Y-%m-%d', invoices.due_date) < strftime('%Y-%m-%d', 'now')",
-			)
-		} else {
-			baseQuery = baseQuery.Where("LOWER(invoices.status) = ?", status)
-		}
+		baseQuery = baseQuery.Where("LOWER(invoices.status) = ?", status)
 	}
 	if search != "" {
 		like := "%" + strings.ToLower(search) + "%"
@@ -143,13 +137,7 @@ func (s *InvoiceService) GetPage(req types.InvoicePageRequest) (*types.InvoicePa
 	}
 
 	if status != "" && status != "all" {
-		if status == "overdue" {
-			listQuery = listQuery.Where(
-				"invoices.balance_due > 0 AND invoices.status NOT IN ('paid','void','draft') AND strftime('%Y-%m-%d', invoices.due_date) < strftime('%Y-%m-%d', 'now')",
-			)
-		} else {
-			listQuery = listQuery.Where("LOWER(invoices.status) = ?", status)
-		}
+		listQuery = listQuery.Where("LOWER(invoices.status) = ?", status)
 	}
 
 	if err := listQuery.Order("invoices.sort_order DESC, invoices.invoice_date DESC").
@@ -190,7 +178,6 @@ func (s *InvoiceService) Create(req types.CreateInvoiceRequest) (*database.Invoi
 		JobName:       req.JobName,
 		Status:        normalizeInvoiceStatus(req.Status),
 		InvoiceDate:   req.InvoiceDate,
-		DueDate:       req.DueDate,
 		Notes:         req.Notes,
 		InvoiceNotes:  req.InvoiceNotes,
 		Subtotal:      req.Subtotal,
@@ -203,9 +190,6 @@ func (s *InvoiceService) Create(req types.CreateInvoiceRequest) (*database.Invoi
 
 	if invoice.InvoiceDate.IsZero() {
 		invoice.InvoiceDate = time.Now()
-	}
-	if invoice.DueDate.IsZero() {
-		invoice.DueDate = invoice.InvoiceDate.AddDate(0, 0, 14)
 	}
 
 	if err := s.db.Create(&invoice).Error; err != nil {
@@ -240,7 +224,6 @@ func (s *InvoiceService) Update(req types.UpdateInvoiceRequest) (*database.Invoi
 	invoice.JobName = req.JobName
 	invoice.Status = normalizeInvoiceStatus(req.Status)
 	invoice.InvoiceDate = req.InvoiceDate
-	invoice.DueDate = req.DueDate
 	invoice.Notes = req.Notes
 	invoice.InvoiceNotes = req.InvoiceNotes
 	invoice.Subtotal = req.Subtotal
@@ -330,7 +313,6 @@ func (s *InvoiceService) Duplicate(id uint) (*database.Invoice, error) {
 		JobName:       jobName + " (Copy)",
 		Status:        "unpaid",
 		InvoiceDate:   time.Now(),
-		DueDate:       time.Now().AddDate(0, 0, 14),
 		Notes:         original.Notes,
 		InvoiceNotes:  original.InvoiceNotes,
 		LineItems:     lineItems,
@@ -367,7 +349,6 @@ func (s *InvoiceService) CreateFromProposal(quoteID uint) (*database.Invoice, er
 		JobName:       quote.JobName,
 		Status:        "unpaid",
 		InvoiceDate:   invoiceDate,
-		DueDate:       invoiceDate.AddDate(0, 0, 14),
 		Notes:         proposalNotesToPlainText(quote.DescriptionBody),
 		LineItems:     lineItems,
 		Subtotal:      quote.Subtotal,
