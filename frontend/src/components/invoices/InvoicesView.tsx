@@ -1367,7 +1367,7 @@ export function InvoicesView({
         <div className="invoice-sheet max-w-[900px] mx-auto px-8 py-7 text-black bg-white relative">
           {effectiveStatus === 'paid' && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="border-4 border-red-600 text-red-600 text-[72px] font-black tracking-[0.25em] px-8 py-3 rounded-md rotate-[-12deg] opacity-70">
+              <span className="border-4 border-red-500 text-red-500 text-[72px] font-black tracking-[0.25em] px-8 py-3 rounded-md rotate-[-12deg] opacity-60">
                 PAID
               </span>
             </div>
