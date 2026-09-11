@@ -1364,7 +1364,14 @@ export function InvoicesView({
         `}
       </style>
       <section className="print-only invoice-print">
-        <div className="invoice-sheet max-w-[900px] mx-auto px-8 py-7 text-black bg-white">
+        <div className="invoice-sheet max-w-[900px] mx-auto px-8 py-7 text-black bg-white relative">
+          {effectiveStatus === 'paid' && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="border-4 border-red-600 text-red-600 text-[72px] font-black tracking-[0.25em] px-8 py-3 rounded-md rotate-[-12deg] opacity-70">
+                PAID
+              </span>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-8 mb-5">
             <div>
               <h1 className="text-[22px] font-semibold leading-none tracking-tight">
